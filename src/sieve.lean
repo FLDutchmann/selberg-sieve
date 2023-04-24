@@ -16,14 +16,39 @@ open_locale big_operators classical
 
 open finset real nat aux
 
+set_option profiler true
 -- one should think of a as weights given to the elements of A,
 -- values of a n for n not in A do not affect any of the results
 structure sieve := 
   mk :: (A : finset ℕ) (P : ℕ) (hP : squarefree P) 
         (a : ℕ → ℝ) (ha_nonneg : ∀ n:ℕ, 0 ≤ a n) 
-        (X : ℝ) (ω : ℕ → ℝ)
+        (X : ℝ) (ω : ℕ → ℝ) 
+        (hω_mult : multiplicative ω)
+        (hω_pos_of_prime : ∀(p:ℕ), p.prime → p ∣ P → 0 < ω p )
 
 namespace sieve
+
+lemma hP_ne_zero (s : sieve) : s.P ≠ 0 := squarefree.ne_zero s.hP
+
+lemma sqfree_of_mem_dvd_P (s:sieve) {d : ℕ} (hd : d ∈ s.P.divisors) : squarefree d := 
+begin
+  simp only [nat.mem_divisors, ne.def] at hd,
+  exact squarefree.squarefree_of_dvd hd.left s.hP,  
+end
+
+lemma hω_pos_of_dvd_P (s: sieve) {d: ℕ} (hl : d ∣ s.P) : 0 < s.ω d := 
+begin
+
+  calc 0 < ∏ p in d.factors.to_finset, s.ω p 
+           : by {
+              apply prod_pos,
+              intros p hpd, rw list.mem_to_finset at hpd,
+              have hp_prime : p.prime := prime_of_mem_factors hpd,
+              have hp_dvd : p ∣ s.P := dvd_trans (dvd_of_mem_factors hpd) hl,
+              exact (s.hω_pos_of_prime p hp_prime hp_dvd), }
+
+     ... = s.ω d : prod_factors_of_mult s.ω s.hω_mult (squarefree.squarefree_of_dvd hl s.hP),
+end
 
 @[simp]
 def mult_sum (s: sieve) (d : ℕ) : ℝ := ∑ n in s.A, ite (d ∣ n) (s.a n) 0
@@ -66,53 +91,139 @@ begin
     ring },
 end
 
-lemma hP_ne_zero (s : sieve) : s.P ≠ 0 := squarefree.ne_zero s.hP
 
-lemma sqfree_of_dvd_P (s:sieve) {d : ℕ} (hd : d ∈ s.P.divisors) : squarefree d := begin
-  simp only [nat.mem_divisors, ne.def] at hd,
-  exact squarefree.squarefree_of_dvd hd.left s.hP,  
+-- The size axioms needed for the simple form of the selberg bound
+def axiom_size_1 (s : sieve) : Prop := ∀p:ℕ, p.prime → p ∣ s.P → (s.ω p < p) 
+
+def drop_prime_of_axiom_size_1 (s : sieve) (h_size : s.axiom_size_1) :
+  ∀d:ℕ, d ∣ s.P → d ≠ 1 → (s.ω d < d) :=  
+begin
+  intros d hdP hd_ne_one,
+  have hd_sq : squarefree d := squarefree.squarefree_of_dvd hdP s.hP,
+  calc s.ω d = ∏ p in d.factors.to_finset, s.ω p : eq_comm.mp (prod_factors_of_mult s.ω s.hω_mult hd_sq)
+
+         ... < ∏ p in d.factors.to_finset, ↑p
+          : by { 
+            have hd_ne_zero : d ≠ 0 := ne_zero_of_dvd_ne_zero s.hP_ne_zero hdP,
+            apply prod_le_prod_of_nonempty,
+            { intros p hp, rw list.mem_to_finset at hp,
+              rw mem_factors hd_ne_zero at hp, 
+              apply s.hω_pos_of_prime p hp.left (dvd_trans hp.right hdP)},
+            { intros p hpd, rw list.mem_to_finset at hpd, rw mem_factors hd_ne_zero at hpd,
+              apply h_size p hpd.left (dvd_trans hpd.right hdP) },
+
+            { dsimp [finset.nonempty],
+              conv{congr, funext, rw list.mem_to_finset, rw nat.mem_factors hd_ne_zero, },
+              exact nat.exists_prime_and_dvd hd_ne_one, } }
+
+         ... = ↑d 
+          : by { 
+            rw prod_factors_of_mult, split, push_cast, ring,
+            intros _ _ _, 
+            calc ↑(x*y) = ↑x*↑y : by rw cast_mul, 
+            exact hd_sq, }
+
+
 end
 
--- The two axioms needed for the simple form of the selberg bound
-def axiom_mult (s : sieve) : Prop := s.ω 1 = 1 ∧ ∀(x y : ℕ), x.coprime y → s.ω (x*y) = s.ω x * s.ω y   
-def axiom_size_1 (s : sieve) : Prop := ∀p:ℕ, p.prime → (0 ≤ s.ω p ∧ s.ω p < p) 
+lemma hω_over_d_mult (s : sieve) :
+  multiplicative (λ d, s.ω d / ↑d) := 
+begin
+  apply div_mult_of_mult,
+  exact s.hω_mult,
+  exact coe_mult,
+  intros n hn, 
+  rw nat.cast_ne_zero,
+  exact ne_of_gt hn,
+end
 
 -- Used in statement of the simple form of the selberg bound
 def g (s : sieve) (d : ℕ) : ℝ := s.ω(d)/d * ∏ p in d.factors.to_finset, 1/(1-s.ω(p)/p) 
 -- S = ∑_{l|P, l≤√y} g(l)
+ 
+lemma zero_lt_g_of_ax_size(s : sieve) (l : ℕ) (hl : l ∣ s.P) 
+ (h_size : s.axiom_size_1) :
+  0 < s.g l :=
+begin
+  have hl_sq : squarefree l := squarefree.squarefree_of_dvd hl s.hP, 
+  dsimp only [g],
+  apply mul_pos,
+  apply div_pos,
+  apply lt_of_le_of_ne,
+  apply le_of_lt,
+  exact (s.hω_pos_of_dvd_P hl),  
+  apply ne_comm.mp, apply ne_of_gt, exact s.hω_pos_of_dvd_P hl,
+  suffices : 0 < l, exact cast_pos.mpr this,
+  rw zero_lt_iff, exact squarefree.ne_zero hl_sq,
+  
+  apply prod_pos,
+  intros p hp,
+  rw one_div_pos,
+  rw list.mem_to_finset at hp,
+  have hp_prime: p.prime,
+  { exact prime_of_mem_factors hp },
+  have hp_dvd : p ∣ s.P,
+  { calc p ∣ l   : nat.dvd_of_mem_factors hp
+       ... ∣ s.P : hl }, 
+  have : s.ω p < p,
+  { exact (h_size p hp_prime hp_dvd) },
+  have hp_pos : 0 < (p:ℝ),
+  { suffices : 0 < p, {exact cast_pos.mpr this}, 
+    exact nat.prime.pos hp_prime },
+  have hp_ne_zero : (p:ℝ) ≠ 0 := ne_comm.mp (ne_of_lt hp_pos),
+  rw ←zero_lt_mul_right hp_pos,
+  calc 0 < ↑p - s.ω p : by linarith only [this]
+     ... = (1-s.ω p / ↑p ) * ↑p 
+     : by { conv{to_lhs, rw ←(div_mul_cancel (s.ω p) hp_ne_zero: s.ω p / p * p = s.ω p )}, ring},
+end
 
 -- Facts about g
-set_option profiler true
-lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) :
-  1 / s.g l = ∑ d in s.P.divisors, ite (d ∣ l) ((μ $ l/d) * d / s.ω d) 0 := 
+lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) 
+  (hω_nonzero : s.ω l ≠ 0) (h_size : s.axiom_size_1) :
+  1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * d / s.ω d) := 
 begin
-  suffices : 1 / s.g l = ∑ d in l.divisors, (μ $ l/d) * d / s.ω d, 
-  { rw this, sorry },
   dsimp only [g],
   simp only [one_div, mul_inv, inv_div, inv_inv, finset.prod_congr, finset.prod_inv_distrib], 
-  apply nat.strong_induction_on l,
-  intros l_ind h_ind,
-  by_cases h_zero : l_ind = 0,
-  sorry{ rw h_zero, simp? }, -- slow
-  by_cases h_one : l_ind = 1,
-  sorry{ rw h_one, simp, rw if_neg s.hP_ne_zero, },
-  let p:= l_ind.min_fac,
-  have hp : p.prime := min_fac_prime h_one,
-  have h_dvd : p ∣ l_ind := min_fac_dvd l_ind,
-  cases h_dvd with k hk,
-  have hkl : k ∣ l_ind,
-  { use p, rw hk, ring, },
-  rw hk,
-  sorry,
-  
+  rw prod_eq_moebius_sum (λ d, s.ω d/(d:ℝ)),
+  { rw mul_sum, 
+    calc ∑ d in l.divisors, ↑l / s.ω l * (↑(μ d) * (s.ω d / ↑d))
+       = ∑ d in l.divisors, ↑(μ d) * (↑l/↑d) * (s.ω d / s.ω l) 
+         : by { apply sum_congr rfl, intros d hd, ring }
+
+   ... = ∑ d in l.divisors, ↑(μ d) * ↑(l/d) * (1 / (s.ω l / s.ω d))
+         : by {
+            apply sum_congr rfl, intros d hd,
+            rw mem_divisors at hd,
+            rw ←nat.cast_div hd.left,
+            rw one_div_div,
+            rw nat.cast_ne_zero,
+            exact ne_zero_of_dvd_ne_zero hd.right hd.left } 
+
+   ... = ∑ d in l.divisors, ↑(μ d) * (↑(l/d) / s.ω (l/d)) 
+         : by { 
+            apply sum_congr rfl, intros d hd,
+            rw mem_divisors at hd,
+            rw div_mult_of_dvd_squarefree s.ω s.hω_mult l d hd.left hl,
+            ring,
+            revert hω_nonzero, contrapose!,
+            exact multiplicative_zero_of_zero_dvd s.ω s.hω_mult hl hd.left }
+   
+   ... = l.divisors.sum (λd, ↑(μ d) * (↑(l/d) / s.ω (l/d))) : rfl
+
+   ... = l.divisors.sum (λd, μ (l/d) * (↑d / s.ω d)) 
+         : by {
+            rw ←nat.sum_divisors_antidiagonal (λd e : ℕ, ↑(μ d) * (↑e/s.ω e)),
+            rw ←nat.sum_divisors_antidiagonal' (λd e : ℕ, ↑(μ d) * (↑e/s.ω e)) }
+
+  ... =  l.divisors.sum (λd, μ (l/d) * ↑d / s.ω d) 
+         : by { apply sum_congr rfl, intros d hd, ring, }},
+
+  exact s.hω_over_d_mult,
+  exact hl,
 end
 
 lemma omega_eq_conv_rec_g (s : sieve) (d : ℕ) :
   (d:ℝ) / s.ω d = ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 := sorry
-
-
---def upper_bound_sieve_of_level (y : ℕ) (μ_plus : ℕ → ℝ) : Prop := 
---  ∀n:ℕ, (n:ℝ) > y → μ_plus n = 0   ∧   ∀n:ℕ, δ n ≤ ∑ d in n.divisors, μ_plus d 
 
 def upper_moebius (μ_plus : ℕ → ℝ) : Prop := ∀n:ℕ, δ n ≤ ∑ d in n.divisors, μ_plus d
 
@@ -222,7 +333,7 @@ def lambda_squared_of_weights (weights : ℕ → ℝ) : ℕ → ℝ :=
   λd,  ∑ d1 d2 in d.divisors, ite (d = nat.lcm d1 d2) (weights d1 * weights d2) 0
 
 
-lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (h_mult : s.axiom_mult) (y : ℕ) (w : ℕ → ℝ) :
+lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ d1 d2 in s.P.divisors, 
             s.ω d1/d1 * w d1 * s.ω d2/d2 * w d2 * (d1.gcd d2)/s.ω(d1.gcd d2) := 
 begin
@@ -302,10 +413,10 @@ begin
               have : d1.gcd d2 ∣ d1.lcm d2,
               calc  d1.gcd d2 ∣ d1        : nat.gcd_dvd_left d1 d2
                           ... ∣ d1.lcm d2 : nat.dvd_lcm_left d1 d2,
-              exact multiplicative_zero_of_zero_dvd s.ω h_mult.right 
-                 (lcm_squarefree_of_squarefree (s.sqfree_of_dvd_P hd1P) (s.sqfree_of_dvd_P hd2P)) this h_zero, },
+              exact multiplicative_zero_of_zero_dvd s.ω s.hω_mult
+                 (lcm_squarefree_of_squarefree (s.sqfree_of_mem_dvd_P hd1P) (s.sqfree_of_mem_dvd_P hd2P)) this h_zero, },
             { rw eq_div_iff_mul_eq h_zero, rw eq_comm,
-              exact mult_gcd_lcm_of_squarefree s.ω h_mult.right d1 d2 (s.sqfree_of_dvd_P hd1P) (s.sqfree_of_dvd_P hd2P) } },
+              exact mult_gcd_lcm_of_squarefree s.ω s.hω_mult d1 d2 (s.sqfree_of_mem_dvd_P hd1P) (s.sqfree_of_mem_dvd_P hd2P) } },
 
           rw this,
           
@@ -325,7 +436,7 @@ begin
 end
  
 
-lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (h_mult : s.axiom_mult) (y : ℕ) (w : ℕ → ℝ) :
+lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ l in s.P.divisors, 
             1/(s.g l) * ∑ d in s.P.divisors, ite (l∣d) (s.ω d/d * w d) 0 := sorry
 

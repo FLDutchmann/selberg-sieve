@@ -15,6 +15,11 @@ open_locale big_operators classical arithmetic_function
 open nat nat.arithmetic_function finset tactic.interactive
 
 namespace aux
+
+def multiplicative (f : ℕ → ℝ) : Prop := 
+  f 1 = 1 ∧ ∀(x y : ℕ), x.coprime y → f (x*y) = f x * f y
+
+
 lemma neq_lcm_of_ndvd {d1 d2 d n : ℕ} (hn: d ∣ n ∧ ¬ n = 0) : (d1 ∣ d → d = 0)  →  ¬ d = d1.lcm d2 :=
 begin
   contrapose!,
@@ -97,7 +102,7 @@ begin
     refl, }
 
 end
-#check @sum_eq_iff_sum_mul_moebius_eq
+
 theorem moebius_inv(n : ℕ) : ∑ d in n.divisors, μ(d) = ite (n=1) 1 0 := 
 begin
   by_cases hn : 0<n,
@@ -220,7 +225,7 @@ begin
   exact ⟨⟨nat.dvd_trans hk.left hn, hP⟩, hk.left⟩,
 end
 
-set_option profiler true
+--set_option profiler true
 theorem moebius_inv_dvd_lower_bound {P : ℕ} (hP : squarefree P) (l m : ℕ) (hm: m ∣ P) : 
   ∑ d in P.divisors, ite (l ∣ d ∧ d ∣ m) (μ d) 0 = ite (l=m) (μ l) 0 := 
 begin
@@ -362,41 +367,13 @@ lemma lcm_squarefree_of_squarefree {n m : ℕ} (hn : squarefree n) (hm : squaref
   intro p,
   simp only [finsupp.sup_apply, sup_le_iff],
   exact ⟨hn p, hm p⟩,
-
-  -- COMMENT OF SHAME:
-  /-
-  dsimp only [squarefree] at *,
-  intros x hx,
-  rw nat.is_unit_iff,
-  rw nat.eq_one_iff_not_exists_prime_dvd,
-  intros p hp,
-  by_contra hpx,
-  have hp2 : p^2 ∣ n.lcm m,
-  calc p^2 ∣ x^2 : pow_dvd_pow_of_dvd hpx 2
-       ... = x*x : sq x
-       ... ∣ n.lcm m : hx, 
-  have : 2 ≤ (n.lcm m).factorization p,
-  { exact (prime.pow_dvd_iff_le_factorization hp (nat.lcm_ne_zero (hn_ne_zero) (hm_ne_zero))).mp hp2, },
-  rw nat.factorization_lcm hn_ne_zero hm_ne_zero at this,
-  simp only [finsupp.sup_apply, le_sup_iff] at this,
-  have casework : ∀(r:ℕ), (∀(x:ℕ), (x*x ∣ r → is_unit x)) → (2 ≤ (r.factorization) p) → false,
-  { intros r hr hr2, 
-    rw ←prime.pow_dvd_iff_le_factorization hp (squarefree.ne_zero hr) at hr2,
-    rw sq at hr2,
-    specialize hr p,  specialize hr hr2,
-    rw nat.is_unit_iff at hr,
-    exact (nat.prime.ne_one hp) hr, },
-
-  cases this with hn_sq hm_sq,
-  { exact casework n hn hn_sq },
-  { exact casework m hm hm_sq }, -/
 }
 
 
 
 example (n m : ℕ) (h : squarefree (n*m)) : n.coprime m := coprime_of_mul_squarefree n m h
 
-lemma mult_gcd_lcm_of_squarefree (f: ℕ → ℝ) (h_mult: ∀(a b:ℕ), a.coprime b → f(a*b) = f a * f b) (x y : ℕ) (hx : squarefree x) (hy : squarefree y)
+lemma mult_gcd_lcm_of_squarefree (f: ℕ → ℝ) (h_mult: multiplicative f) (x y : ℕ) (hx : squarefree x) (hy : squarefree y)
 : f x * f y = f(x.lcm y) * f(x.gcd y) := begin
   have hgcd : squarefree (x.gcd y),
   { apply squarefree.squarefree_of_dvd _ hx, exact nat.gcd_dvd_left x y, },
@@ -407,13 +384,13 @@ lemma mult_gcd_lcm_of_squarefree (f: ℕ → ℝ) (h_mult: ∀(a b:ℕ), a.copri
   have hx_cop_yg : x.coprime (y/x.gcd y),
   { apply coprime_of_mul_squarefree,
     rw ←hassoc, exact lcm_squarefree_of_squarefree hx hy },
-  rw h_mult x (y/ x.gcd y) hx_cop_yg,
+  rw h_mult.right x (y/ x.gcd y) hx_cop_yg,
   have : (y / x.gcd y).coprime (x.gcd y),
   { apply coprime_of_mul_squarefree,
     rw nat.div_mul_cancel (nat.gcd_dvd_right x y), 
     exact hy },
   rw mul_assoc,
-  rw ←h_mult _ _ this, 
+  rw ←h_mult.right _ _ this, 
   rw nat.div_mul_cancel (nat.gcd_dvd_right x y),
 end 
 
@@ -423,9 +400,197 @@ begin
            ... ∣ m * n : ⟨n, rfl⟩, 
 end
 
-lemma multiplicative_zero_of_zero_dvd (f: ℕ → ℝ) (h_mult: ∀(a b:ℕ), a.coprime b → f(a*b) = f a * f b) (m n : ℕ) (hmn : m ∣ n) (h_zero : f m = 0)
- : f m = 0 :=
+lemma multiplicative_zero_of_zero_dvd (f: ℕ → ℝ) (h_mult: multiplicative f) {m n : ℕ} (h_sq : squarefree n) (hmn : m ∣ n) (h_zero : f m = 0)
+ : f n = 0 :=
 begin
-  
+  cases hmn with k hk,
+  rw hk,
+  rw hk at h_sq,
+  have : m.coprime k := coprime_of_mul_squarefree m k h_sq,
+  rw h_mult.right m k this,
+  rw h_zero, simp only [zero_mul, eq_self_iff_true],
 end 
+
+example (t : finset ℕ) : t.val.prod = t.prod id := prod_val t
+
+lemma prod_subset_factors_of_mult(f: ℕ → ℝ) (h_mult: multiplicative f) {l : ℕ} (hl : squarefree l):
+ ∀(t: finset ℕ), t ⊆ l.factors.to_finset → ∏ (a : ℕ) in t, f a = f t.val.prod := 
+begin
+  intro t, intro ht, rw prod_val t, revert ht, apply finset.induction_on t, 
+  intro h, 
+  simp only [eq_self_iff_true, finset.prod_empty, finset.empty_val, multiset.prod_zero, h_mult.left],
+  rename t α,
+  intros p t hpt h_ind h_sub,
+  have ht_sub : t ⊆ l.factors.to_finset,
+  { exact finset.subset.trans (finset.subset_insert p t) h_sub, },
+  have hl_primes : ∀(a:ℕ), a ∈ l.factors.to_finset → a.prime,
+  { intros a hal,
+    rw list.mem_to_finset at hal, 
+    exact nat.prime_of_mem_factors hal, }, 
+  have ht_primes : ∀(a:ℕ), a∈t → a.prime,
+  { intros a ha, apply hl_primes a,
+    apply mem_of_subset ht_sub ha, }, 
+  have hp_prime : p.prime,
+  { apply hl_primes p, apply mem_of_subset h_sub, exact mem_insert_self p t, },
+  have hp_cop : p.coprime (t.prod id),
+  { rw nat.prime.coprime_iff_not_dvd hp_prime, 
+    rw prime.dvd_finset_prod_iff (nat.prime_iff.mp hp_prime) id,
+    push_neg, intros a ha, by_contra hpa,
+    rw id.def at hpa, 
+    have : p=a := eq_comm.mp ((nat.prime.dvd_iff_eq (ht_primes a ha) (nat.prime.ne_one hp_prime) ).mp hpa),
+    rw this at hpt,
+    exact hpt ha, }, 
+  specialize h_ind ht_sub,
+  calc  ∏ (a : ℕ) in insert p t, f a 
+      = f p * ∏ (a : ℕ) in t, f a : prod_insert hpt
+  
+  ... = f p * f (t.prod id) : by { rw h_ind }
+  
+  ... = f (p * ∏ a in t, a) : by {rw h_mult.right p (∏ a in t, a) hp_cop, refl,}
+  
+  ... = f (∏ a in (insert p t), a) : by {rw ←prod_insert hpt, }
+end
+
+lemma eq_prod_set_factors_of_squarefree {l:ℕ} (hl : squarefree l) :
+  l.factors.to_finset.val.prod = l :=
+begin
+  suffices : l.factors.to_finset.val = l.factors, 
+  {rw this, rw multiset.coe_prod, exact prod_factors (squarefree.ne_zero hl) },
+  ext p,
+  rw list.to_finset_val,
+  rw multiset.coe_count, rw multiset.coe_count,
+  rw list.count_dedup,
+  rw eq_comm,
+  apply list.count_eq_of_nodup,
+  apply (squarefree_iff_nodup_factors _).mp hl,
+  exact squarefree.ne_zero hl,
+end
+
+lemma prod_factors_of_mult (f: ℕ → ℝ) (h_mult: multiplicative f) {l : ℕ} (hl : squarefree l):
+  ∏ (a : ℕ) in l.factors.to_finset, f a = f l := 
+begin
+  rw prod_subset_factors_of_mult f h_mult hl l.factors.to_finset finset.subset.rfl,
+  suffices : l.factors.to_finset.val.prod = l, rw this,
+  exact eq_prod_set_factors_of_squarefree hl,
+end
+
+-- finset.prod_add   nat.sum_divisors_filter_squarefree 
+lemma prod_add_mult (f: ℕ → ℝ) (h_mult: multiplicative f) {l : ℕ} (hl : squarefree l):
+  ∏ p in l.factors.to_finset, (1+f p) = ∑ d in l.divisors, f d := 
+begin
+  conv { to_lhs, congr, skip, funext, rw add_comm, },
+  rw finset.prod_add,
+  conv { to_lhs, congr, skip, funext, conv { congr, skip, rw prod_eq_one (λ _ _, rfl) }, rw mul_one, },
+
+  have : l.divisors.filter squarefree = l.divisors,
+  { ext x, split,
+    apply filter_subset,
+    intro hx, simp only [finset.mem_filter], split, 
+    exact hx, rw mem_divisors at hx, exact squarefree.squarefree_of_dvd hx.left hl,},
+  conv{ to_rhs, congr, rw ←this, },
+
+  rw nat.sum_divisors_filter_squarefree,
+  
+  have hfact_eq : l.factors.to_finset.powerset = (unique_factorization_monoid.normalized_factors l).to_finset.powerset,
+  { rw nat.factors_eq,  simp, }, 
+  
+  apply sum_congr hfact_eq,
+   
+  intros t ht,
+  rw ←hfact_eq at ht, 
+  rw mem_powerset at ht,
+  exact prod_subset_factors_of_mult f h_mult hl t ht,
+
+  exact squarefree.ne_zero hl,
+end
+
+lemma prod_eq_moebius_sum (f: ℕ → ℝ) (h_mult: multiplicative f) {l : ℕ} (hl : squarefree l):
+  ∏ p in l.factors.to_finset, (1-f p) = ∑ d in l.divisors, μ d * f d := 
+begin
+  suffices : ∏ p in l.factors.to_finset, ((1:ℝ) + (λ(x:ℕ), ((μ x):ℝ) * f x ) p) = ∑ d in l.divisors, μ d * f d,
+  { rw ← this, 
+    apply prod_congr rfl, intros p hp, 
+    rw list.mem_to_finset at hp,
+    have hp_prime : p.prime, 
+    { apply prime_of_mem_factors hp, },
+
+    calc 1 - f p = 1 + μ p * f p : by{ 
+        rw arithmetic_function.moebius_apply_prime hp_prime, 
+        push_cast, ring,}, },
+
+  apply prod_add_mult,
+  { split, 
+    calc (μ 1:ℝ) * f 1 = 1 : by {
+      rw arithmetic_function.moebius_apply_one, 
+      rw h_mult.left, push_cast, ring,},
+    intros a b hab,
+    calc  (μ (a*b):ℝ) * f (a*b) 
+        = (μ a * μ b) * (f a * f b) 
+          : by {
+            rw arithmetic_function.is_multiplicative_moebius.right hab,
+            rw h_mult.right a b hab, push_cast,} 
+       
+    ... = (μ a:ℝ)*f a *((μ b:ℝ) * f b) : by ring, },
+  exact hl,
+end 
+
+lemma prod_le_prod_of_nonempty {t : finset ℕ} (f g : ℕ → ℝ) 
+  (hf : ∀n:ℕ, n∈t → 0 < f n)  (hfg : ∀n:ℕ, n∈t → f n < g n) (h_ne : t.nonempty) :
+  ∏ p in t, f p  < ∏ p in t, g p  :=
+begin
+  have hg : ∀n:ℕ, n∈t → 0 < g n,
+  { intros n hn, exact lt_trans (hf n hn) (hfg n hn) },
+  revert h_ne hf hg hfg,
+  apply finset.induction_on t,
+  simp,
+  intros q s hqs h_ind _ _ _ _,
+  have hq_in : q ∈ insert q s,
+  { rw finset.mem_insert, exact or.intro_left (q∈s) (rfl:q=q),  },
+  rw prod_insert hqs,
+  rw prod_insert hqs,
+  apply mul_lt_mul,
+  exact hfg q hq_in,
+  by_cases hs_ne : s.nonempty,
+  { apply le_of_lt,
+    apply h_ind hs_ne,
+    { intros n hn, apply hf, rw mem_insert, exact or.intro_right (n=q) hn, },
+    { intros n hn, apply hg, rw mem_insert, exact or.intro_right (n=q) hn, },
+    { intros n hn, apply hfg, rw mem_insert, exact or.intro_right (n=q) hn, }, },
+  { suffices : s=∅, rw this, simp only [le_refl, finset.prod_empty],
+    rw not_nonempty_iff_eq_empty at hs_ne, exact hs_ne, },
+  apply prod_pos, intros p hps, apply hf p, rw mem_insert, exact or.intro_right (p=q) hps,
+  apply le_of_lt, exact hg q hq_in,
+end
+
+lemma div_mult_of_dvd_squarefree (f : ℕ → ℝ) (h_mult: multiplicative f)
+  (l d : ℕ) (hdl : d ∣ l) (hl : squarefree l) (hd: f d ≠ 0): f l / f d = f (l/d) :=
+begin
+  apply div_eq_of_eq_mul hd,
+  have : l/d * d = l,
+  { apply nat.div_mul_cancel hdl },
+  rw ←h_mult.right,
+  rw this,
+  apply coprime_of_mul_squarefree,
+  rw this, exact hl,
+end
+
+lemma div_mult_of_mult {f g : ℕ → ℝ} (hf : multiplicative f) (hg : multiplicative g) (hg_zero: ∀n:ℕ, 0 < n → g n ≠ 0) :
+  multiplicative (f/g) :=
+begin
+  split,
+  calc (f/g) 1 = f 1 / g 1 : rfl
+           ... = 1 : by {rw hf.left, rw hg.left, ring},
+  intros x y hxy,
+  calc (f/g) (x*y) = f (x*y) / g (x*y) : rfl
+               ... = f x * f y / (g x * g y) : by {rw hf.right x y hxy, rw hg.right x y hxy, }
+               ... = f x/g x * (f y/g y) : by {rw ←div_div, ring,}
+               ... = (f/g) x * (f/g) y : rfl
+end
+
+lemma coe_mult : multiplicative (λ(n:ℕ), (n:ℝ)) :=
+begin
+  split, exact nat.cast_one,
+  intros x y hxy,
+  calc ↑(x*y) = ↑x * ↑y : cast_mul x y,
+end
 end aux
