@@ -50,6 +50,13 @@ begin
      ... = s.ω d : prod_factors_of_mult s.ω s.hω_mult (squarefree.squarefree_of_dvd hl s.hP),
 end
 
+lemma hω_ne_zero_of_mem_dvd_P (s: sieve) {d: ℕ} (hd : d ∈ s.P.divisors) : s.ω d ≠ 0 :=
+begin
+  apply ne_of_gt,
+  rw mem_divisors at hd,
+  apply hω_pos_of_dvd_P s hd.left,
+end
+
 @[simp]
 def mult_sum (s: sieve) (d : ℕ) : ℝ := ∑ n in s.A, ite (d ∣ n) (s.a n) 0
 
@@ -69,9 +76,12 @@ def sifted_sum (s: sieve): ℝ := ∑ d in s.A, ite (s.P.coprime d) (s.a d) 0
 def ν := arithmetic_function.card_distinct_factors
 @[simp]
 def δ (n : ℕ) : ℝ := ite (n = 1) 1 0
-@[simp]
-def μ := arithmetic_function.moebius
+--@[simp]
+--def μ := arithmetic_function.moebius
 
+
+localized "notation (name := moebius)
+  `μ` := nat.arithmetic_function.moebius" in sieve
 
 theorem sifted_sum_as_delta(s : sieve): 
   s.sifted_sum = ∑ d in s.A, s.a d * δ (nat.gcd s.P d) := 
@@ -179,8 +189,8 @@ end
 
 -- Facts about g
 lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) 
-  (hω_nonzero : s.ω l ≠ 0) (h_size : s.axiom_size_1) :
-  1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * d / s.ω d) := 
+  (hω_nonzero : s.ω l ≠ 0): --(h_size : s.axiom_size_1) :
+  1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * (d / s.ω d)) := 
 begin
   dsimp only [g],
   simp only [one_div, mul_inv, inv_div, inv_inv, finset.prod_congr, finset.prod_inv_distrib], 
@@ -213,17 +223,91 @@ begin
    ... = l.divisors.sum (λd, μ (l/d) * (↑d / s.ω d)) 
          : by {
             rw ←nat.sum_divisors_antidiagonal (λd e : ℕ, ↑(μ d) * (↑e/s.ω e)),
-            rw ←nat.sum_divisors_antidiagonal' (λd e : ℕ, ↑(μ d) * (↑e/s.ω e)) }
+            rw ←nat.sum_divisors_antidiagonal' (λd e : ℕ, ↑(μ d) * (↑e/s.ω e)) } },
 
-  ... =  l.divisors.sum (λd, μ (l/d) * ↑d / s.ω d) 
-         : by { apply sum_congr rfl, intros d hd, ring, }},
 
   exact s.hω_over_d_mult,
   exact hl,
 end
 
-lemma omega_eq_conv_rec_g (s : sieve) (d : ℕ) :
-  (d:ℝ) / s.ω d = ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 := sorry
+lemma omega_eq_conv_rec_g (s : sieve) (d : ℕ) (hdP : d ∣ s.P ) :
+  (d:ℝ) / s.ω d = ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 := 
+begin -- Problem, these identities only hold on l ∣ P, so can't use standard moebius inversion results,
+  rw eq_comm,
+  calc  ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 
+        
+      = ∑ l in s.P.divisors, ite (l ∣ d) (∑ k in l.divisors, ((μ $ l/k) * (k / s.ω k)) ) 0 
+        : by {
+          apply sum_congr rfl, intros l hl, 
+          rw s.rec_g_eq_conv_moebius_omega l (s.sqfree_of_mem_dvd_P hl) (s.hω_ne_zero_of_mem_dvd_P hl) }
+        
+    ... = ∑ l in s.P.divisors, ite (l ∣ d) (∑ k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0 ) 0 
+          : by { 
+            apply sum_congr rfl, intros l hl,
+            rw mem_divisors at hl, rw ←sum_over_dvd_ite s.hP_ne_zero hl.left }
+    
+    ... = ∑ l in s.P.divisors, (∑ k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0) * ite (l ∣ d) 1 0 
+          : by conv{ to_rhs, congr, skip, funext, rw mul_boole }
+
+    ... = ∑ l k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0 * ite (l ∣ d) 1 0 
+          : by { apply sum_congr rfl, intros l hl, rw sum_mul }
+    
+    ... = ∑ k l in s.P.divisors, ite (k∣l ∧ l ∣ d) ((μ $ l/k) * (k / s.ω k)) 0
+          : by {
+            rw sum_comm, 
+            apply sum_congr rfl, intros l hl,
+            apply sum_congr rfl, intros k hk,
+            rw ←ite_and_mul_zero,
+            apply ite_eq_of_iff_eq _ _ iff.rfl, intro _, ring }
+    
+    ... = ∑ k l in s.P.divisors, ite (k∣l ∧ l ∣ d) ((μ l/μ k)) 0 * (k / s.ω k)
+          : by {
+            conv{ to_rhs, congr, skip, funext, conv{congr, skip, funext, conv{rw ←ite_mul_zero_left}} },
+            apply sum_congr rfl, intros k hk, apply sum_congr rfl, intros l hl,
+            apply ite_eq_of_iff_eq _ _ iff.rfl,
+            rintros ⟨h, _⟩,
+            have := nat.arithmetic_function.is_multiplicative_moebius,  
+            calc  (λ x:ℕ, (μ x:ℝ)) (l/k) * ((k:ℝ) / s.ω k)
+                = ↑(μ l) / ↑(μ k) * (↑k / s.ω k) 
+                : by { -- SLOW SLOW SLOW SLOW
+                  rw div_mult_of_dvd_squarefree (λ x, ↑(μ x)),
+                  split, simp,
+                  intros x y hxy, norm_cast,
+                  apply nat.arithmetic_function.is_multiplicative.map_mul_of_coprime this hxy, 
+                  exact h.left,
+                  exact s.sqfree_of_mem_dvd_P hl,
+                  suffices : μ k ≠ 0, simpa using this,
+                  
+                  apply arithmetic_function.moebius_ne_zero_iff_squarefree.mpr,
+                  exact s.sqfree_of_mem_dvd_P hk, } }
+
+    ... = ∑ k in s.P.divisors, (∑ l in s.P.divisors, ite (k ∣ l ∧ l ∣ d) (μ l) 0) / μ k * (k / s.ω k)
+          : by {
+            apply sum_congr rfl, intros k hk,
+            conv{ to_lhs, congr, skip, funext, rw div_eq_mul_inv, rw ite_mul_zero_left,},
+            rw ←sum_mul, rw ←sum_mul,  rw ←div_eq_mul_inv }
+
+    ... = ∑ k in s.P.divisors, (ite (k = d) (μ k) 0) / μ k * (k / s.ω k)
+          : by {
+            apply sum_congr rfl, intros k hk, rw ←int.cast_zero, 
+            conv{to_lhs, congr, congr, congr, skip, funext, conv{rw ←int.cast_ite}}, rw ←int.cast_sum,
+            rw (rfl : μ = arithmetic_function.moebius),
+            classical,
+            rw moebius_inv_dvd_lower_bound s.hP k d hdP,
+            rw ←int.cast_ite }
+            
+    ... = ↑d / s.ω d 
+          : by{
+            rw finset.sum_eq_single d,
+            rw if_pos rfl, rw div_self, ring,
+            rw int.cast_ne_zero, 
+            apply arithmetic_function.moebius_ne_zero_iff_squarefree.mpr,
+            exact squarefree.squarefree_of_dvd hdP s.hP,
+            intros k hk hkd, rw if_neg hkd, ring,
+            intro hd, rw mem_divisors at hd, 
+            exfalso, push_neg at hd,
+            exact s.hP_ne_zero (hd hdP) }
+end
 
 def upper_moebius (μ_plus : ℕ → ℝ) : Prop := ∀n:ℕ, δ n ≤ ∑ d in n.divisors, μ_plus d
 
@@ -237,8 +321,6 @@ instance ub_to_μ_plus : has_coe_to_fun upper_bound_sieve (λ _, ℕ → ℝ) :=
 def main_sum (s: sieve) (μ_plus: ℕ → ℝ) : ℝ := ∑ d in s.P.divisors, μ_plus d * s.ω d / d   
 
 def err_sum (s: sieve) (μ_plus: ℕ → ℝ): ℝ := ∑ d in s.P.divisors, |μ_plus d| * |s.R d|  
---def upper_bound_sieve (μ_plus : ℕ → ℝ) : Prop := 
---  ∀n:ℕ, δ n ≤ ∑ d in n.divisors, μ_plus d 
 
 theorem upper_bound_of_upper_bound_sieve (s : sieve) 
     (μ_plus : upper_bound_sieve) : 

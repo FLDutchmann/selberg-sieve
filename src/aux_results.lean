@@ -35,7 +35,8 @@ end
 
 -- Rephrasing sum_subset_zero_on_sdiff for our context
 lemma sum_over_dvd  {α : Type _} [ring α] {P : ℕ} (hP: P ≠ 0) {n : ℕ} (hn : n ∣ P) {f g: ℕ → α} (hf : ∀d:ℕ, d∣P ∧ ¬ d∣n → f d = 0) (hfg : ∀d:ℕ, d∣n → f d = g d): 
-  ∑ d in n.divisors, g d = ∑ d in P.divisors, f d   := begin
+  ∑ d in n.divisors, g d = ∑ d in P.divisors, f d   := 
+begin
 
   apply sum_subset_zero_on_sdiff,
   { exact nat.divisors_subset_of_dvd hP hn,},
@@ -53,6 +54,24 @@ lemma sum_over_dvd  {α : Type _} [ring α] {P : ℕ} (hP: P ≠ 0) {n : ℕ} (h
     rw eq_comm,
     apply hfg d,
     exact hd.left, }
+end
+
+lemma sum_over_dvd_ite  {α : Type _} [ring α] {P : ℕ} (hP: P ≠ 0) {n : ℕ} (hn : n ∣ P) {f: ℕ → α}: 
+  ∑ d in n.divisors, f d = ∑ d in P.divisors, ite (d ∣ n) (f d) 0   := 
+begin
+  apply sum_subset_zero_on_sdiff,
+  { exact nat.divisors_subset_of_dvd hP hn,},
+  { intros d hd,
+    apply if_neg,
+    rw [finset.mem_sdiff, nat.mem_divisors, nat.mem_divisors] at hd,
+    push_neg at hd,
+    by_contra h,
+    have : n=0 := hd.right h,
+    exact (ne_zero_of_dvd_ne_zero hP hn) this },
+  { intros d hd,
+    rw if_pos,
+    rw mem_divisors at hd,
+    exact hd.left }
 end
 
 lemma sum_intro {α : Type _} [ring α] (s : finset ℕ) (p : Prop) [decidable p] (x: α) (d : ℕ) [Π k: ℕ, decidable (k = d ∧ p)] (hd : p → d ∈ s) : 
