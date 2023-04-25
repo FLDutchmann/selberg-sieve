@@ -151,6 +151,7 @@ end
 def g (s : sieve) (d : ℕ) : ℝ := s.ω(d)/d * ∏ p in d.factors.to_finset, 1/(1-s.ω(p)/p) 
 -- S = ∑_{l|P, l≤√y} g(l)
  
+-- Facts about g
 lemma zero_lt_g_of_ax_size(s : sieve) (l : ℕ) (hl : l ∣ s.P) 
  (h_size : s.axiom_size_1) :
   0 < s.g l :=
@@ -187,7 +188,6 @@ begin
      : by { conv{to_lhs, rw ←(div_mul_cancel (s.ω p) hp_ne_zero: s.ω p / p * p = s.ω p )}, ring},
 end
 
--- Facts about g
 lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) 
   (hω_nonzero : s.ω l ≠ 0): --(h_size : s.axiom_size_1) :
   1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * (d / s.ω d)) := 
@@ -520,7 +520,55 @@ end
 
 lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ l in s.P.divisors, 
-            1/(s.g l) * ∑ d in s.P.divisors, ite (l∣d) (s.ω d/d * w d) 0 := sorry
+            1/(s.g l) * (∑ d in s.P.divisors, ite (l∣d) (s.ω d/d * w d) 0)^2 := 
+begin
+  rw s.lambda_sq_main_sum_eq_quad_form y w,
+  calc  ∑ d1 d2 in s.P.divisors, s.ω d1 / ↑d1 * w d1 * s.ω d2 / ↑d2 * w d2 * ↑(d1.gcd d2) / s.ω (d1.gcd d2)
+
+      = ∑ d1 d2 in s.P.divisors, (↑(d1.gcd d2) / s.ω (d1.gcd d2)) * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) 
+        : by {
+          apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
+          ring }
+
+  ... = ∑ d1 d2 in s.P.divisors, (∑ l in s.P.divisors, ite (l ∣ d1.gcd d2) (1/s.g l) 0) * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) 
+        : by {
+          apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
+          rw mem_divisors at hd1 hd2,
+          rw s.omega_eq_conv_rec_g (d1.gcd d2) (dvd_trans (nat.gcd_dvd_left d1 d2) (hd1.left)) }
+  
+  ... = ∑ d1 d2 l in s.P.divisors, ite (l ∣ d1.gcd d2) (1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+        : by {
+          apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
+          rw sum_mul, rw sum_mul,
+          apply sum_congr rfl, intros l hl,
+          rw ←ite_mul_zero_left, rw ←ite_mul_zero_left }
+
+  ... = ∑ l d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) (1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+        : by {
+          conv{to_rhs, rw sum_comm}, apply sum_congr rfl, intros d1 hd1,
+          conv{to_rhs, rw sum_comm}, apply sum_congr rfl, intros d2 hd2,
+          apply sum_congr rfl, intros l hl,
+          apply ite_eq_of_iff_eq,
+          exact dvd_gcd_iff,
+          exact λ_, rfl }
+
+  ... = ∑ l in s.P.divisors, 1/s.g l * ∑ d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) ( (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+        : by { 
+          apply sum_congr rfl, intros l hl,
+          rw mul_sum, apply sum_congr rfl, intros d1 hd1,
+          rw mul_sum, apply sum_congr rfl, intros d2 hd2,
+          rw ←ite_mul_zero_right, rw mul_assoc, }
+  
+  ... = ∑ l in s.P.divisors, 1 / s.g l * (∑ d in s.P.divisors, ite (l ∣ d) (s.ω d / ↑d * w d) 0)^2 
+        : by {
+          apply sum_congr rfl, intros l hl,
+          suffices : ∑ d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) ( (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+                   = (∑ d in s.P.divisors, ite (l ∣ d) (s.ω d / ↑d * w d) 0)^2, rw this,
+          rw sq,
+          rw mul_sum, apply sum_congr rfl, intros d1 hd1,
+          rw sum_mul, apply sum_congr rfl, intros d2 hd2,
+          rw ite_and_mul_zero, ring, }
+end
 
   
 

@@ -3,7 +3,7 @@ import sieve
 
 noncomputable theory
 
-open_locale big_operators classical
+open_locale big_operators classical sieve
 
 open finset real nat sieve.upper_bound_sieve
 
