@@ -118,11 +118,55 @@ begin
 
 end
 
-lemma selberg_weights_diagonalisation(s : sieve) (y: ℕ) (l : ℕ):
+lemma selberg_weights_diagonalisation(s : sieve) (y: ℕ) (l : ℕ) (hl: l ∈ s.P.divisors):
     ∑ d in s.P.divisors, (if l ∣ d then s.ω d / d * s.selberg_weights y d else 0) 
-  = s.g l * μ l / s.selberg_bounding_sum_at_level y := 
+  = if l^2 ≤ y then s.g l * μ l / s.selberg_bounding_sum_at_level y else 0 := 
 begin
-  sorry
+  let S := s.selberg_bounding_sum_at_level y,
+
+  calc ∑ d in s.P.divisors, (if l ∣ d then s.ω d / d * s.selberg_weights y d else 0) 
+      
+      = ∑ d in s.P.divisors, (if l ∣ d then 1/S * μ d * ∑ k in s.P.divisors, (if d ∣ k ∧ k^2 ≤ y then s.g k else 0) else 0)
+        : by conv{ to_lhs, congr, skip, funext, rw selberg_weights_eq_dvds_sum, }
+      
+  ... = ∑ d k in s.P.divisors, (if l ∣ d ∧ d ∣ k ∧ k^2 ≤ y  then  s.g k * (1/S) * μ d else 0)
+        : by { 
+          apply sum_congr rfl, intros d hd, 
+          rw ←boole_mul,rw mul_sum, rw mul_sum, 
+          apply sum_congr rfl, intros k hk, 
+          rw ←ite_mul_zero_right, rw ←ite_and_mul_zero,
+          apply aux.ite_eq_of_iff_eq, refl,
+          intro h, ring,  }
+  
+  ... = ∑ k in s.P.divisors, (if k^2 ≤ y then  (∑ d in s.P.divisors, if l ∣ d ∧ d ∣ k  then μ d else 0) * s.g k * (1/S) else 0)
+        : by {
+          rw sum_comm, apply sum_congr rfl, intros k hk,
+          conv{to_rhs, rw ←boole_mul},
+          rw sum_mul,rw sum_mul, rw mul_sum,
+          apply sum_congr rfl, intros d hd,
+          conv{to_rhs, congr, skip, rw ←ite_mul_zero_left, rw ←ite_mul_zero_left,}, 
+          rw ←ite_and_mul_zero, 
+          apply aux.ite_eq_of_iff_eq,
+          split,
+          { rintros ⟨ hld, hdk, hky ⟩, exact ⟨hky, hld, hdk⟩, },
+          { rintros ⟨ hky, hld, hdk ⟩, exact ⟨hld, hdk, hky⟩, },
+          intro h, ring }
+   
+  ... = ∑ k in s.P.divisors, if k=l ∧ l^2 ≤ y then s.g l * μ l / S else 0 
+        : by {
+          apply sum_congr rfl, intros k hk,
+          rw aux.moebius_inv_dvd_lower_bound_real s.hP l k,
+          rw ←ite_mul_zero_left, rw ←ite_mul_zero_left,
+          rw ←ite_and,
+          apply aux.ite_eq_of_iff_eq,
+          split, 
+          { rintros ⟨hky, hlk⟩, rw hlk, exact ⟨rfl, hky⟩ },
+          { rintros ⟨hkl, hly⟩, rw hkl, exact ⟨hly, rfl⟩ },
+          intro h, rw h.left.right, ring,
+          rw mem_divisors at hk, exact hk.left, }
+  
+  ... = if l^2 ≤ y then s.g l * μ l / S else 0 
+        : by { rw ←aux.sum_intro, intro h, exact hl } 
 end
 
 

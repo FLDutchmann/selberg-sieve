@@ -373,6 +373,13 @@ begin
   ... = if l=m then μ l else 0 : ite_eq_of_iff_eq (μ l * 1) (μ l) iff.rfl (λh, mul_one (μ l)),   
 end 
 
+theorem moebius_inv_dvd_lower_bound_real {P : ℕ} (hP : squarefree P) (l m : ℕ) (hm: m ∣ P) : 
+  ∑ d in P.divisors, (if l ∣ d ∧ d ∣ m then (μ d:ℝ) else 0) = if l=m then (μ l:ℝ) else 0 := 
+begin
+  norm_cast,
+  apply moebius_inv_dvd_lower_bound hP l m hm,
+end
+
 example (a b n : ℕ) (hab : a ∣ b) : a ^ n ∣ b ^ n := pow_dvd_pow_of_dvd hab n
 
 lemma lcm_squarefree_of_squarefree {n m : ℕ} (hn : squarefree n) (hm : squarefree m) : squarefree (n.lcm m) := by {
