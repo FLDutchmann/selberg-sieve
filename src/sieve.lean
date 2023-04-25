@@ -58,7 +58,7 @@ begin
 end
 
 @[simp]
-def mult_sum (s: sieve) (d : ℕ) : ℝ := ∑ n in s.A, ite (d ∣ n) (s.a n) 0
+def mult_sum (s: sieve) (d : ℕ) : ℝ := ∑ n in s.A, if d ∣ n then s.a n else 0
 
 -- A_d = ω(d)/d X + R_d
 @[simp]
@@ -70,12 +70,12 @@ begin
   ring,
 end
 
-def sifted_sum (s: sieve): ℝ := ∑ d in s.A, ite (s.P.coprime d) (s.a d) 0  
+def sifted_sum (s: sieve): ℝ := ∑ d in s.A, if s.P.coprime d then s.a d else 0  
 
 @[simp]
 def ν := arithmetic_function.card_distinct_factors
 @[simp]
-def δ (n : ℕ) : ℝ := ite (n = 1) 1 0
+def δ (n : ℕ) : ℝ := if n = 1 then 1 else 0
 --@[simp]
 --def μ := arithmetic_function.moebius
 
@@ -231,28 +231,28 @@ begin
 end
 
 lemma omega_eq_conv_rec_g (s : sieve) (d : ℕ) (hdP : d ∣ s.P ) :
-  (d:ℝ) / s.ω d = ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 := 
+  (d:ℝ) / s.ω d = ∑ l in s.P.divisors, if l ∣ d then 1/s.g l else 0 := 
 begin -- Problem, these identities only hold on l ∣ P, so can't use standard moebius inversion results,
   rw eq_comm,
-  calc  ∑ l in s.P.divisors, ite (l ∣ d) (1/s.g l) 0 
+  calc  ∑ l in s.P.divisors, (if l ∣ d then 1/s.g l else 0)
         
-      = ∑ l in s.P.divisors, ite (l ∣ d) (∑ k in l.divisors, ((μ $ l/k) * (k / s.ω k)) ) 0 
+      = ∑ l in s.P.divisors, if l ∣ d then ∑ k in l.divisors, ((μ $ l/k) * (k / s.ω k)) else 0
         : by {
           apply sum_congr rfl, intros l hl, 
           rw s.rec_g_eq_conv_moebius_omega l (s.sqfree_of_mem_dvd_P hl) (s.hω_ne_zero_of_mem_dvd_P hl) }
         
-    ... = ∑ l in s.P.divisors, ite (l ∣ d) (∑ k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0 ) 0 
+    ... = ∑ l in s.P.divisors, if l ∣ d then ∑ k in s.P.divisors, (if k∣l then (μ $ l/k) * (k / s.ω k) else 0) else 0 
           : by { 
             apply sum_congr rfl, intros l hl,
             rw mem_divisors at hl, rw ←sum_over_dvd_ite s.hP_ne_zero hl.left }
     
-    ... = ∑ l in s.P.divisors, (∑ k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0) * ite (l ∣ d) 1 0 
+    ... = ∑ l in s.P.divisors, (∑ k in s.P.divisors, if k∣l then (μ $ l/k) * (k / s.ω k) else 0) * if l ∣ d then 1 else 0 
           : by conv{ to_rhs, congr, skip, funext, rw mul_boole }
 
-    ... = ∑ l k in s.P.divisors, ite (k∣l) ((μ $ l/k) * (k / s.ω k)) 0 * ite (l ∣ d) 1 0 
+    ... = ∑ l k in s.P.divisors, (if k∣l then (μ $ l/k) * (k / s.ω k) else 0) * (if l ∣ d then 1 else 0) 
           : by { apply sum_congr rfl, intros l hl, rw sum_mul }
     
-    ... = ∑ k l in s.P.divisors, ite (k∣l ∧ l ∣ d) ((μ $ l/k) * (k / s.ω k)) 0
+    ... = ∑ k l in s.P.divisors, if k∣l ∧ l ∣ d then (μ $ l/k) * (k / s.ω k) else 0
           : by {
             rw sum_comm, 
             apply sum_congr rfl, intros l hl,
@@ -260,7 +260,7 @@ begin -- Problem, these identities only hold on l ∣ P, so can't use standard m
             rw ←ite_and_mul_zero,
             apply ite_eq_of_iff_eq _ _ iff.rfl, intro _, ring }
     
-    ... = ∑ k l in s.P.divisors, ite (k∣l ∧ l ∣ d) ((μ l/μ k)) 0 * (k / s.ω k)
+    ... = ∑ k l in s.P.divisors, (if k∣l ∧ l ∣ d then (μ l/μ k) else 0) * (k / s.ω k)
           : by {
             conv{ to_rhs, congr, skip, funext, conv{congr, skip, funext, conv{rw ←ite_mul_zero_left}} },
             apply sum_congr rfl, intros k hk, apply sum_congr rfl, intros l hl,
@@ -281,13 +281,13 @@ begin -- Problem, these identities only hold on l ∣ P, so can't use standard m
                   apply arithmetic_function.moebius_ne_zero_iff_squarefree.mpr,
                   exact s.sqfree_of_mem_dvd_P hk, } }
 
-    ... = ∑ k in s.P.divisors, (∑ l in s.P.divisors, ite (k ∣ l ∧ l ∣ d) (μ l) 0) / μ k * (k / s.ω k)
+    ... = ∑ k in s.P.divisors, (∑ l in s.P.divisors, if k ∣ l ∧ l ∣ d then μ l else 0) / μ k * (k / s.ω k)
           : by {
             apply sum_congr rfl, intros k hk,
             conv{ to_lhs, congr, skip, funext, rw div_eq_mul_inv, rw ite_mul_zero_left,},
             rw ←sum_mul, rw ←sum_mul,  rw ←div_eq_mul_inv }
 
-    ... = ∑ k in s.P.divisors, (ite (k = d) (μ k) 0) / μ k * (k / s.ω k)
+    ... = ∑ k in s.P.divisors, (if k = d then μ k else 0) / μ k * (k / s.ω k)
           : by {
             apply sum_congr rfl, intros k hk, rw ←int.cast_zero, 
             conv{to_lhs, congr, congr, congr, skip, funext, conv{rw ←int.cast_ite}}, rw ←int.cast_sum,
@@ -342,7 +342,7 @@ begin
           apply sum_congr rfl, intros n hnA,
           exact mul_sum } 
 
- ... = ∑ n in s.A, ∑ d in s.P.divisors, ite (d ∣ n) (s.a n * μ_plus d) 0 
+ ... = ∑ n in s.A, ∑ d in s.P.divisors, if d ∣ n then s.a n * μ_plus d else 0 
        : by {
           apply sum_congr rfl, intros n hnA,
           apply sum_over_dvd s.hP_ne_zero (gcd_dvd s.P n).left,
@@ -355,15 +355,15 @@ begin
             have : d ∣ n := dvd_trans hd (gcd_dvd s.P n).right,
             exact if_pos this } } 
 
- ... = ∑ d in s.P.divisors, ∑ n in s.A,  ite (d ∣ n) (s.a n * μ_plus d) 0 : finset.sum_comm
+ ... = ∑ d in s.P.divisors, ∑ n in s.A,  if d ∣ n then s.a n * μ_plus d else 0 : finset.sum_comm
 
- ... = ∑ d in s.P.divisors, ∑ n in s.A, μ_plus d * ite (d ∣ n) (s.a n) 0 
+ ... = ∑ d in s.P.divisors, ∑ n in s.A, μ_plus d * if d ∣ n then s.a n else 0 
        : by {
           apply sum_congr rfl, intros d hdP,
           apply sum_congr rfl, intros n hnA,
           rw ite_mul_zero_left, ring, }
 
- ... = ∑ d in s.P.divisors, μ_plus d * ∑ n in s.A, ite (d ∣ n) (s.a n) 0 
+ ... = ∑ d in s.P.divisors, μ_plus d * ∑ n in s.A, if d ∣ n then s.a n else 0 
        : by {
           apply sum_congr rfl, intros d hdP,
           rw eq_comm,
@@ -412,7 +412,7 @@ end
 
 
 def lambda_squared_of_weights (weights : ℕ → ℝ) : ℕ → ℝ := 
-  λd,  ∑ d1 d2 in d.divisors, ite (d = nat.lcm d1 d2) (weights d1 * weights d2) 0
+  λd,  ∑ d1 d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0
 
 
 lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
@@ -421,21 +421,21 @@ lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
 begin
   --dsimp only [main_sum, lambda_squared_of_weights],
 
-  calc ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, ite (d = d1.lcm d2) (w d1 * w d2) 0) * s.ω d / ↑d
-      = ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, ite (d = d1.lcm d2) (w d1 * w d2) 0) * (s.ω d / ↑d) 
+  calc ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 else 0) * s.ω d / ↑d
+      = ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 else 0) * (s.ω d / ↑d) 
         : by { apply sum_congr rfl, intros d hdP, ring }
   
-  ... = ∑ d in s.P.divisors, ∑ d1 d2 in d.divisors, (ite (d = d1.lcm d2) (w d1 * w d2) 0 * (s.ω d / ↑d)) 
+  ... = ∑ d in s.P.divisors, ∑ d1 d2 in d.divisors, (if d = d1.lcm d2 then w d1 * w d2 else 0) * (s.ω d / ↑d) 
         : by {apply sum_congr rfl, intros d hdP, rw sum_mul, apply sum_congr rfl, intros d1 hd1d, rw sum_mul }
 
-  ... = ∑ d in s.P.divisors, ∑ d1 d2 in d.divisors, ite (d = d1.lcm d2) (w d1 * w d2 * s.ω d / ↑d) 0 
+  ... = ∑ d in s.P.divisors, ∑ d1 d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 * s.ω d / ↑d else 0 
         : by { 
           apply sum_congr rfl, intros d hdP, apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
           rw ←ite_mul_zero_left, 
           apply ite_eq_of_iff_eq _ _ iff.rfl,
           rintro ⟨h, _⟩, ring, }
 
-  ... = ∑ d d1 in s.P.divisors, ∑ d2 in d.divisors, ite (d = d1.lcm d2) (w d1 * w d2 * s.ω d / ↑d) 0
+  ... = ∑ d d1 in s.P.divisors, ∑ d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 * s.ω d / ↑d else 0
         : by {
           apply sum_congr rfl, intros d hdP,
           apply sum_over_dvd s.hP_ne_zero,
@@ -448,7 +448,7 @@ begin
             rw if_neg this },
           { intros d1 hd1, refl, } } 
 
-  ... = ∑ d d1 d2 in s.P.divisors, ite (d = d1.lcm d2) (w d1 * w d2 * s.ω d / ↑d) 0
+  ... = ∑ d d1 d2 in s.P.divisors, if d = d1.lcm d2 then w d1 * w d2 * s.ω d / ↑d else 0
         : by {
           apply sum_congr rfl, intros d hdP,
           apply sum_congr rfl, intros d1 hd1P,
@@ -461,17 +461,17 @@ begin
           { exact λ_ _, rfl, } }
 
   
-  ... = ∑ d1 d2 d in s.P.divisors, ite (d = d1.lcm d2) (w d1 * w d2 * s.ω d / ↑d) 0 
+  ... = ∑ d1 d2 d in s.P.divisors, if d = d1.lcm d2 then w d1 * w d2 * s.ω d / ↑d else 0 
         : by { rw sum_comm, apply sum_congr rfl, intros d1 hd1, rw sum_comm, }
 
-  ... = ∑ d1 d2 d in s.P.divisors, ite (d = d1.lcm d2 ∧ true) (w d1 * w d2 * s.ω (d1.lcm d2) / ↑(d1.lcm d2)) 0 
+  ... = ∑ d1 d2 d in s.P.divisors, if d = d1.lcm d2 ∧ true then w d1 * w d2 * s.ω (d1.lcm d2) / ↑(d1.lcm d2) else 0 
         : by { 
           apply sum_congr rfl, intros d1 hd1P, apply sum_congr rfl, intros d2 hd2, apply sum_congr rfl, intros d hd,
           apply ite_eq_of_iff_eq,
           { rw and_true },
           rintros ⟨h, _⟩, rw ←h, }
       
-  ... = ∑ d1 d2 in s.P.divisors, ite (true) (w d1 * w d2 * s.ω (d1.lcm d2) / ↑(d1.lcm d2)) 0 
+  ... = ∑ d1 d2 in s.P.divisors, if true then w d1 * w d2 * s.ω (d1.lcm d2) / ↑(d1.lcm d2) else 0 
         : by {
           apply sum_congr rfl, intros d1 hd1P, apply sum_congr rfl, intros d2 hd2P,
           rw ←sum_intro s.P.divisors true (w d1 * w d2 * s.ω (d1.lcm d2) / ↑(d1.lcm d2)) ,
@@ -520,7 +520,7 @@ end
 
 lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ l in s.P.divisors, 
-            1/(s.g l) * (∑ d in s.P.divisors, ite (l∣d) (s.ω d/d * w d) 0)^2 := 
+            1/(s.g l) * (∑ d in s.P.divisors, if l∣d then s.ω d/d * w d else 0)^2 := 
 begin
   rw s.lambda_sq_main_sum_eq_quad_form y w,
   calc  ∑ d1 d2 in s.P.divisors, s.ω d1 / ↑d1 * w d1 * s.ω d2 / ↑d2 * w d2 * ↑(d1.gcd d2) / s.ω (d1.gcd d2)
@@ -530,20 +530,21 @@ begin
           apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
           ring }
 
-  ... = ∑ d1 d2 in s.P.divisors, (∑ l in s.P.divisors, ite (l ∣ d1.gcd d2) (1/s.g l) 0) * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) 
+  ... = ∑ d1 d2 in s.P.divisors, (∑ l in s.P.divisors, if l ∣ d1.gcd d2 then 1/s.g l else 0) 
+                               * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) 
         : by {
           apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
           rw mem_divisors at hd1 hd2,
           rw s.omega_eq_conv_rec_g (d1.gcd d2) (dvd_trans (nat.gcd_dvd_left d1 d2) (hd1.left)) }
   
-  ... = ∑ d1 d2 l in s.P.divisors, ite (l ∣ d1.gcd d2) (1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+  ... = ∑ d1 d2 l in s.P.divisors, if l ∣ d1.gcd d2 then 1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) else 0 
         : by {
           apply sum_congr rfl, intros d1 hd1, apply sum_congr rfl, intros d2 hd2,
           rw sum_mul, rw sum_mul,
           apply sum_congr rfl, intros l hl,
           rw ←ite_mul_zero_left, rw ←ite_mul_zero_left }
 
-  ... = ∑ l d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) (1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+  ... = ∑ l d1 d2 in s.P.divisors, if l ∣ d1 ∧ l ∣ d2 then 1/s.g l * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) else 0 
         : by {
           conv{to_rhs, rw sum_comm}, apply sum_congr rfl, intros d1 hd1,
           conv{to_rhs, rw sum_comm}, apply sum_congr rfl, intros d2 hd2,
@@ -552,18 +553,18 @@ begin
           exact dvd_gcd_iff,
           exact λ_, rfl }
 
-  ... = ∑ l in s.P.divisors, 1/s.g l * ∑ d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) ( (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
+  ... = ∑ l in s.P.divisors, 1/s.g l * ∑ d1 d2 in s.P.divisors, if l ∣ d1 ∧ l ∣ d2 then (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) else 0 
         : by { 
           apply sum_congr rfl, intros l hl,
           rw mul_sum, apply sum_congr rfl, intros d1 hd1,
           rw mul_sum, apply sum_congr rfl, intros d2 hd2,
           rw ←ite_mul_zero_right, rw mul_assoc, }
   
-  ... = ∑ l in s.P.divisors, 1 / s.g l * (∑ d in s.P.divisors, ite (l ∣ d) (s.ω d / ↑d * w d) 0)^2 
+  ... = ∑ l in s.P.divisors, 1 / s.g l * (∑ d in s.P.divisors, if l ∣ d then s.ω d / ↑d * w d else 0)^2 
         : by {
           apply sum_congr rfl, intros l hl,
-          suffices : ∑ d1 d2 in s.P.divisors, ite (l ∣ d1 ∧ l ∣ d2) ( (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2)) 0 
-                   = (∑ d in s.P.divisors, ite (l ∣ d) (s.ω d / ↑d * w d) 0)^2, rw this,
+          suffices : ∑ d1 d2 in s.P.divisors, (if l ∣ d1 ∧ l ∣ d2 then (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) else 0) 
+                   = (∑ d in s.P.divisors, if l ∣ d then s.ω d / ↑d * w d else 0)^2, rw this,
           rw sq,
           rw mul_sum, apply sum_congr rfl, intros d1 hd1,
           rw sum_mul, apply sum_congr rfl, intros d2 hd2,
@@ -578,7 +579,7 @@ theorem upper_moebius_of_lambda_sq (weights : ℕ → ℝ) (hw : weights 1 = 1) 
 begin
   dsimp [upper_moebius, lambda_squared_of_weights],
   intro n, 
-  have h_sq: ∑ d in n.divisors, ∑ d1 d2 in d.divisors, ite (d = nat.lcm d1 d2) (weights d1 * weights d2) 0
+  have h_sq: (∑ d in n.divisors, ∑ d1 d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0)
           = (∑ d in n.divisors, weights d)^2,
   { 
     rw sq,

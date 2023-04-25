@@ -57,7 +57,7 @@ begin
 end
 
 lemma sum_over_dvd_ite  {α : Type _} [ring α] {P : ℕ} (hP: P ≠ 0) {n : ℕ} (hn : n ∣ P) {f: ℕ → α}: 
-  ∑ d in n.divisors, f d = ∑ d in P.divisors, ite (d ∣ n) (f d) 0   := 
+  ∑ d in n.divisors, f d = ∑ d in P.divisors, if d ∣ n then f d else 0   := 
 begin
   apply sum_subset_zero_on_sdiff,
   { exact nat.divisors_subset_of_dvd hP hn,},
@@ -75,7 +75,7 @@ begin
 end
 
 lemma sum_intro {α : Type _} [ring α] (s : finset ℕ) (p : Prop) [decidable p] (x: α) (d : ℕ) [Π k: ℕ, decidable (k = d ∧ p)] (hd : p → d ∈ s) : 
-  ite p x 0 = ∑ k in s, ite (k = d ∧ p) x 0 := 
+  (if p then x else 0) = ∑ k in s, if k = d ∧ p then x else 0 := 
 begin
   by_cases hp : p,
   { rw if_pos hp,
@@ -94,8 +94,8 @@ begin
 end
 
 lemma conv_lambda_sq_larger_sum (weights : ℕ → ℝ) (n : ℕ) : 
-    ∑ d in n.divisors, ∑ d1 in d.divisors, ∑ d2 in d.divisors, ite (d = nat.lcm d1 d2) (weights d1 * weights d2) 0
-  = ∑ d in n.divisors, ∑ d1 in n.divisors, ∑ d2 in n.divisors, ite (d = nat.lcm d1 d2) (weights d1 * weights d2) 0 :=
+   (∑ d in n.divisors, ∑ d1 in d.divisors, ∑ d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0)
+  = ∑ d in n.divisors, ∑ d1 in n.divisors, ∑ d2 in n.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0 :=
 begin
   apply sum_congr rfl,
   intros d hd,
@@ -122,7 +122,7 @@ begin
 
 end
 
-theorem moebius_inv(n : ℕ) : ∑ d in n.divisors, μ(d) = ite (n=1) 1 0 := 
+theorem moebius_inv(n : ℕ) : ∑ d in n.divisors, μ(d) = if n=1 then 1 else 0 := 
 begin
   by_cases hn : 0<n,
   
@@ -164,7 +164,7 @@ begin
 end
 
 lemma ite_eq_of_iff {α : Type} {p q : Prop} (hpq : p ↔ q) [decidable p] [decidable q] {x y : α} 
-  : ite p x y = ite q x y :=
+  : (if p then x else y) = if q then x else y :=
 begin
   by_cases h:p,
   { rw if_pos h,
@@ -177,7 +177,7 @@ end
 
 
 lemma ite_eq_of_iff_eq {α : Type} [has_zero α] {p q : Prop} (x y : α) (hpq : p ↔ q) [decidable p] [decidable q]  (h_eq : p∧q → x=y) 
-  : ite p x 0 = ite q y 0 :=
+  : (if p then x else 0) = if q then y else 0 :=
 begin
   by_cases h:p,
   { rw if_pos h,
@@ -246,15 +246,15 @@ end
 
 --set_option profiler true
 theorem moebius_inv_dvd_lower_bound {P : ℕ} (hP : squarefree P) (l m : ℕ) (hm: m ∣ P) : 
-  ∑ d in P.divisors, ite (l ∣ d ∧ d ∣ m) (μ d) 0 = ite (l=m) (μ l) 0 := 
+  ∑ d in P.divisors, (if l ∣ d ∧ d ∣ m then μ d else 0) = if l=m then μ l else 0 := 
 begin
   have hP_ne_zero : P ≠ 0 := squarefree.ne_zero hP,
   have hm_ne_zero : m ≠ 0 := ne_zero_of_dvd_ne_zero hP_ne_zero hm,
   have hl_zero_lt_of_dvd_m : l ∣ m → 0 < l := λhdvd, zero_lt_iff.mpr $ ne_zero_of_dvd_ne_zero hm_ne_zero hdvd,
 
 
-  calc  ∑ d in P.divisors, ite (l ∣ d ∧ d ∣ m)  (μ d) 0
-      = ∑ d k in P.divisors, ite (k = d/l ∧ l ∣ d ∧ d ∣ m) (μ d) 0   
+  calc  ∑ d in P.divisors, (if l ∣ d ∧ d ∣ m then μ d else 0)
+      = ∑ d k in P.divisors, if k = d/l ∧ l ∣ d ∧ d ∣ m then μ d else 0   
         : by { 
           apply sum_congr rfl, intros d hd, 
           have : l ∣ d ∧ d ∣ m → d/l ∈ P.divisors,
@@ -265,7 +265,7 @@ begin
             exact hd.right, },
           exact sum_intro P.divisors (l ∣ d ∧ d ∣ m) (μ d) (d/l) this, }
 
-  ... = ∑ d k in P.divisors, ite (d = k*l ∧ d ∣ m) (μ $ k*l) 0
+  ... = ∑ d k in P.divisors, if d = k*l ∧ d ∣ m then μ $ k*l else 0
         : by {
           apply sum_congr rfl, intros d hd,
           apply sum_congr rfl, intros k hk,
@@ -275,9 +275,9 @@ begin
           { intro h, rw h.right.left, },
           apply ite_eq_of_iff_eq  (μ d) (μ $ k*l) h_iff h_eq, }
 
-  ... = ∑ k d in P.divisors, ite (d = k*l ∧ d ∣ m) (μ $ k*l) 0 : sum_comm 
+  ... = ∑ k d in P.divisors, if d = k*l ∧ d ∣ m then μ $ k*l else 0 : sum_comm 
 
-  ... = ∑ k d in P.divisors, ite (d = k*l ∧ k*l ∣ m) (μ $ k*l) 0 
+  ... = ∑ k d in P.divisors, if d = k*l ∧ k*l ∣ m then μ $ k*l else 0 
         : by {
           apply sum_congr rfl, intros k hk,
           apply sum_congr rfl, intros d hd,
@@ -288,7 +288,7 @@ begin
           intro h, split,
           exact h.left, rw h.left, exact h.right, } 
 
-  ... = ∑ k in P.divisors, ite (k*l ∣ m) (μ $ k*l) 0
+  ... = ∑ k in P.divisors, if k*l ∣ m then μ $ k*l else 0
         : by { 
           apply sum_congr rfl, intros k hk,
           rw eq_comm,
@@ -299,7 +299,7 @@ begin
           simp only [mem_divisors] at hk,
           exact hk.right, } 
 
-  ... = ∑ k in P.divisors, ite (k*l ∣ m) ((μ k) * (μ l))  0 
+  ... = ∑ k in P.divisors, if k*l ∣ m then (μ k) * (μ l) else 0 
         : by {
           apply sum_congr rfl, intros k hk,
           apply ite_eq_of_iff_eq,
@@ -313,7 +313,7 @@ begin
                 ... ∣ P : hm,
           exact squarefree.squarefree_of_dvd this hP }
 
-  ... = ∑ k in P.divisors, ite (k ∣ m/l ∧ l ∣ m) ((μ k) * (μ l))  0 
+  ... = ∑ k in P.divisors, if k ∣ m/l ∧ l ∣ m then (μ k) * (μ l) else 0 
         : by {
           apply sum_congr rfl, intros k hk,
           apply ite_eq_of_iff,
@@ -329,13 +329,13 @@ begin
           rw this,
           exact (nat.mul_dvd_mul_iff_right hl_ne_zero).mpr h.left,  }
 
-  ... = ∑ k in P.divisors, ite (k ∣ m/l)  (ite (l ∣ m) ((μ k) * (μ l)) 0)  0 
+  ... = ∑ k in P.divisors, if k ∣ m/l then  (if l ∣ m then (μ k) * (μ l) else 0) else 0 
         : sum_congr rfl (λk (hk:k∈P.divisors),ite_and (k ∣ m/l) (l∣ m) ((μ k) * (μ l)) 0) 
 
-  ... = ∑ k in P.divisors.filter(λk, k ∣ m/l), ite (l ∣ m) ((μ k) * (μ l)) 0
+  ... = ∑ k in P.divisors.filter(λk, k ∣ m/l), if l ∣ m then (μ k) * (μ l) else 0
         : eq_comm.mp $ sum_filter (λk, k ∣ m/l) (λk,ite (l ∣ m) ((μ k) * (μ l)) 0)
 
-  ... = ∑ k in (m/l).divisors, ite (l ∣ m) ((μ k) * (μ l)) 0 
+  ... = ∑ k in (m/l).divisors, if l ∣ m then (μ k) * (μ l) else 0 
         : by {
           by_cases hlm: l ∣ m,
           { have hmlP : m/l ∣ P := nat.dvd_trans (div_dvd_of_dvd hlm) hm,
@@ -347,16 +347,16 @@ begin
             rw finset.sum_eq_zero (this $ (m/l).divisors),
             exact finset.sum_eq_zero (this $ P.divisors.filter (λ (k : ℕ), k ∣ m / l)) } }   
 
-  ... = ∑ k in (m/l).divisors, ite (l∣ m) (μ l) 0 * (μ k)  
+  ... = ∑ k in (m/l).divisors, (if l∣ m then μ l else 0) * μ k  
         : by {
           apply sum_congr rfl, intros k hk,
           rw ite_mul_zero_right, ring, }
 
-  ... = ite (l ∣ m) (μ l) 0 * ∑ k in (m/l).divisors, μ k : by { rw mul_sum, }
+  ... = (if l ∣ m then μ l else 0) * ∑ k in (m/l).divisors, μ k : by { rw mul_sum, }
 
-  ... = ite (l ∣ m) (μ l) 0 * ite (m/l=1) 1 0 : by rw moebius_inv
+  ... = (if l ∣ m then μ l else 0) * if m/l=1 then 1 else 0 : by rw moebius_inv
 
-  ... = ite (l=m) (μ l * 1) 0 
+  ... = if l=m then μ l * 1 else 0 
         : by {
           have : l=m ↔ (l ∣ m ∧ m/l = 1),
           { split,
@@ -370,7 +370,7 @@ begin
           rw ite_eq_of_iff this,
           rw ite_and_mul_zero (l ∣ m) (m/l = 1) }
 
-  ... = ite (l=m) (μ l) 0 : ite_eq_of_iff_eq (μ l * 1) (μ l) iff.rfl (λh, mul_one (μ l)),   
+  ... = if l=m then μ l else 0 : ite_eq_of_iff_eq (μ l * 1) (μ l) iff.rfl (λh, mul_one (μ l)),   
 end 
 
 example (a b n : ℕ) (hab : a ∣ b) : a ^ n ∣ b ^ n := pow_dvd_pow_of_dvd hab n
@@ -612,4 +612,5 @@ begin
   intros x y hxy,
   calc ↑(x*y) = ↑x * ↑y : cast_mul x y,
 end
+
 end aux
