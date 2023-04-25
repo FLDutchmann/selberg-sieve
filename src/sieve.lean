@@ -188,6 +188,17 @@ begin
      : by { conv{to_lhs, rw ←(div_mul_cancel (s.ω p) hp_ne_zero: s.ω p / p * p = s.ω p )}, ring},
 end
 
+lemma hg_mult (s : sieve) : multiplicative s.g :=
+begin
+  have : s.g = (λ d, s.ω d / ↑d) * (λd, ∏ p in d.factors.to_finset, 1/(1-s.ω p / p)),
+  { ext d, refl, },
+  rw this,
+  apply mult_mul_of_mult,
+  exact s.hω_over_d_mult,
+  exact mult_prod_factors _,
+end
+
+
 lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) 
   (hω_nonzero : s.ω l ≠ 0): --(h_size : s.axiom_size_1) :
   1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * (d / s.ω d)) := 

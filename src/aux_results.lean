@@ -613,4 +613,29 @@ begin
   calc ↑(x*y) = ↑x * ↑y : cast_mul x y,
 end
 
+lemma mult_mul_of_mult (f g : ℕ → ℝ) (hf : multiplicative f) (hg : multiplicative g) : multiplicative (f*g) :=
+begin
+  split,
+  dsimp only [multiplicative] at *,
+  calc f 1 * g 1 = 1 : by { rw hf.left, rw hg.left, ring },
+  intros x y hxy,
+  calc (f $ x*y) * (g $ x*y) = f x * g x * (f y * g y) : by {rw hf.right x y hxy, rw hg.right x y hxy, ring,}
+end
+
+
+lemma mult_prod_factors (f : ℕ → ℝ) : multiplicative (λd, ∏ p in d.factors.to_finset, f p) :=
+begin
+  split,
+  simp,
+  intros x y hxy,
+  simp,
+  have h_union : (x*y).factors.to_finset = x.factors.to_finset ∪ y.factors.to_finset,
+  { ext p, rw list.mem_to_finset, rw ←list.to_finset_union, rw list.mem_to_finset, 
+    exact nat.mem_factors_mul_of_coprime hxy p, },
+  have h_disj : disjoint x.factors.to_finset y.factors.to_finset,
+  { rw list.disjoint_to_finset_iff_disjoint, exact nat.coprime_factors_disjoint hxy, },
+
+  rw ←finset.prod_disj_union h_disj, rw finset.disj_union_eq_union, rw h_union,
+end
+
 end aux
