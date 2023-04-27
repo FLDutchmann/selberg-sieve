@@ -24,7 +24,8 @@ structure sieve :=
         (a : ℕ → ℝ) (ha_nonneg : ∀ n:ℕ, 0 ≤ a n) 
         (X : ℝ) (ω : ℕ → ℝ) 
         (hω_mult : multiplicative ω)
-        (hω_pos_of_prime : ∀(p:ℕ), p.prime → p ∣ P → 0 < ω p )
+        (hω_pos_of_prime : ∀(p:ℕ), p.prime → p ∣ P → 0 < ω p)
+        (hω_size :         ∀(p:ℕ), p.prime → p ∣ P → ω p < p)
 
 namespace sieve
 
@@ -105,7 +106,7 @@ end
 -- The size axioms needed for the simple form of the selberg bound
 def axiom_size_1 (s : sieve) : Prop := ∀p:ℕ, p.prime → p ∣ s.P → (s.ω p < p) 
 
-def drop_prime_of_axiom_size_1 (s : sieve) (h_size : s.axiom_size_1) :
+def hω_size_of_dvd_P (s : sieve):
   ∀d:ℕ, d ∣ s.P → d ≠ 1 → (s.ω d < d) :=  
 begin
   intros d hdP hd_ne_one,
@@ -120,7 +121,7 @@ begin
               rw mem_factors hd_ne_zero at hp, 
               apply s.hω_pos_of_prime p hp.left (dvd_trans hp.right hdP)},
             { intros p hpd, rw list.mem_to_finset at hpd, rw mem_factors hd_ne_zero at hpd,
-              apply h_size p hpd.left (dvd_trans hpd.right hdP) },
+              apply s.hω_size p hpd.left (dvd_trans hpd.right hdP) },
 
             { dsimp [finset.nonempty],
               conv{congr, funext, rw list.mem_to_finset, rw nat.mem_factors hd_ne_zero, },
@@ -132,8 +133,6 @@ begin
             intros _ _ _, 
             calc ↑(x*y) = ↑x*↑y : by rw cast_mul, 
             exact hd_sq, }
-
-
 end
 
 lemma hω_over_d_mult (s : sieve) :
@@ -152,8 +151,7 @@ def g (s : sieve) (d : ℕ) : ℝ := s.ω(d)/d * ∏ p in d.factors.to_finset, 1
 -- S = ∑_{l|P, l≤√y} g(l)
  
 -- Facts about g
-lemma zero_lt_g_of_ax_size(s : sieve) (l : ℕ) (hl : l ∣ s.P) 
- (h_size : s.axiom_size_1) :
+lemma hg_pos(s : sieve) (l : ℕ) (hl : l ∣ s.P):
   0 < s.g l :=
 begin
   have hl_sq : squarefree l := squarefree.squarefree_of_dvd hl s.hP, 
@@ -177,7 +175,7 @@ begin
   { calc p ∣ l   : nat.dvd_of_mem_factors hp
        ... ∣ s.P : hl }, 
   have : s.ω p < p,
-  { exact (h_size p hp_prime hp_dvd) },
+  { exact (s.hω_size p hp_prime hp_dvd) },
   have hp_pos : 0 < (p:ℝ),
   { suffices : 0 < p, {exact cast_pos.mpr this}, 
     exact nat.prime.pos hp_prime },
@@ -200,7 +198,7 @@ end
 
 
 lemma rec_g_eq_conv_moebius_omega (s : sieve) (l : ℕ) (hl : squarefree l) 
-  (hω_nonzero : s.ω l ≠ 0): --(h_size : s.axiom_size_1) :
+  (hω_nonzero : s.ω l ≠ 0):
   1 / s.g l = ∑ d in l.divisors, ((μ $ l/d) * (d / s.ω d)) := 
 begin
   dsimp only [g],
@@ -426,7 +424,7 @@ def lambda_squared_of_weights (weights : ℕ → ℝ) : ℕ → ℝ :=
   λd,  ∑ d1 d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0
 
 
-lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
+lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ d1 d2 in s.P.divisors, 
             s.ω d1/d1 * w d1 * s.ω d2/d2 * w d2 * (d1.gcd d2)/s.ω(d1.gcd d2) := 
 begin
@@ -529,11 +527,11 @@ begin
 end
  
 
-lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (y : ℕ) (w : ℕ → ℝ) :
+lemma lambda_sq_main_sum_eq_diag_quad_form (s: sieve) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ l in s.P.divisors, 
             1/(s.g l) * (∑ d in s.P.divisors, if l∣d then s.ω d/d * w d else 0)^2 := 
 begin
-  rw s.lambda_sq_main_sum_eq_quad_form y w,
+  rw s.lambda_sq_main_sum_eq_quad_form w,
   calc  ∑ d1 d2 in s.P.divisors, s.ω d1 / ↑d1 * w d1 * s.ω d2 / ↑d2 * w d2 * ↑(d1.gcd d2) / s.ω (d1.gcd d2)
 
       = ∑ d1 d2 in s.P.divisors, (↑(d1.gcd d2) / s.ω (d1.gcd d2)) * (s.ω d1 / ↑d1 * w d1) * (s.ω d2 / ↑d2 * w d2) 
