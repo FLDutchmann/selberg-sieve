@@ -209,13 +209,57 @@ def selberg_ub_sieve (s: sieve) (y : ℝ) (hy : 1 ≤ y): upper_bound_sieve := �
 
 
 namespace selberg
--- prove for general lambda squared sieves
-lemma main_sum_eq_diag_quad_form (s : sieve) (y : ℝ) (hy: 1 ≤ y) :
+-- proved for general lambda squared sieves
+lemma main_sum_eq_diag_quad_form (s : sieve) (y : ℝ) :
   s.main_sum (s.selberg_μ_plus y) = ∑ l in s.P.divisors, 
-              1/s.g l * (∑ d in s.P.divisors, if l ∣ d then s.ω d/d * s.selberg_weights y d else 0)^2 := sorry 
+              1/s.g l * (∑ d in s.P.divisors, if l ∣ d then s.ω d/d * s.selberg_weights y d else 0)^2 := 
+begin 
+  apply lambda_sq_main_sum_eq_diag_quad_form,
+end
  
 lemma selberg_bound_simple_main_sum (s : sieve) (y : ℝ) (hy: 1 ≤ y) :
-  s.main_sum (s.selberg_μ_plus y) =  1 / (s.selberg_bounding_sum_at_level y) := sorry
+  s.main_sum (s.selberg_μ_plus y) =  1 / (s.selberg_bounding_sum_at_level y) := 
+begin
+  let S :=  s.selberg_bounding_sum_at_level y,
+  rw main_sum_eq_diag_quad_form,
+  calc  ∑ l in s.P.divisors, 1 / s.g l * (∑ d in s.P.divisors, if l ∣ d then s.ω d / ↑d * s.selberg_weights y d else 0) ^ 2
+     
+      = ∑ l in s.P.divisors, 1 / s.g l * (if (l:ℝ)^2 ≤ y then s.g l * μ l / S else 0 )^2
+        : by {
+          apply sum_congr rfl, intros l hl,
+          rw s.selberg_weights_diagonalisation y l hl, }
+
+  ... = ∑ l in s.P.divisors, 1/ s.g l * if (l:ℝ)^2 ≤ y then (s.g l)^2 * (1/S)^2 else 0 
+        : by {
+          apply sum_congr rfl, intros l hl,
+          rw sq,
+          rw ←ite_and_mul_zero,
+          rw aux.ite_eq_of_iff_eq, tauto,
+
+          intro h,
+          calc  s.g l * ↑(μ l) / S * (s.g l * ↑(μ l) / S)
+               = s.g l ^ 2 * ↑(μ l)^2 *(1/ S)^2 : by ring
+           ... = s.g l ^ 2 * (1/ S)^2 
+                 : by { 
+                   rw ←int.cast_pow, rw aux.moebius_sq_eq_one_of_squarefree (s.sqfree_of_mem_dvd_P hl), 
+                   rw int.cast_one, ring } }  
+  
+  ... = ∑ l in s.P.divisors, (if (l:ℝ)^2 ≤ y then s.g l else 0) * (1/S)^2 
+        : by {
+          apply sum_congr rfl, intros l hl,
+          rw ite_mul_zero_left, rw ←mul_assoc,
+          rw ←ite_mul_zero_right, rw (sq $ s.g l), rw ←mul_assoc,
+          rw mem_divisors at hl,
+          rw one_div_mul_cancel, rw one_mul, apply ne_of_gt, exact s.hg_pos l hl.left, }
+
+  ... = 1/S  
+        : by{
+          rw ←sum_mul, rw sq, rw ←mul_assoc, 
+          calc S * (1/S) * (1/S) = 1/S 
+          : by {rw mul_one_div_cancel, ring, apply ne_of_gt, 
+                apply s.selberg_bounding_sum_pos y hy } },
+  
+end
 
 
 lemma selberg_bound_weights (s : sieve) (y : ℝ) :

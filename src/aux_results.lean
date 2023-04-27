@@ -645,4 +645,11 @@ begin
   rw ←finset.prod_disj_union h_disj, rw finset.disj_union_eq_union, rw h_union,
 end
 
+lemma moebius_sq_eq_one_of_squarefree {l : ℕ} (hl : squarefree l) : 
+  (μ l)^2 = 1 :=
+begin
+  rw arithmetic_function.moebius_apply_of_squarefree hl,
+  rw ←pow_mul, rw mul_comm, rw pow_mul, rw neg_one_sq, rw one_pow,
+end
+
 end aux
