@@ -651,5 +651,11 @@ begin
   rw arithmetic_function.moebius_apply_of_squarefree hl,
   rw ←pow_mul, rw mul_comm, rw pow_mul, rw neg_one_sq, rw one_pow,
 end
+lemma abs_moebius_eq_one_of_squarefree {l : ℕ} (hl : squarefree l) : 
+  |μ l| = 1 :=
+begin
+  rw arithmetic_function.moebius_apply_of_squarefree hl,
+  rw abs_pow, simp,
+end
 
 end aux

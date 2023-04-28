@@ -31,6 +31,11 @@ namespace sieve
 
 lemma hP_ne_zero (s : sieve) : s.P ≠ 0 := squarefree.ne_zero s.hP
 
+lemma sqfree_of_dvd_P (s:sieve) {d : ℕ} (hd : d ∣ s.P) : squarefree d := 
+begin
+  exact squarefree.squarefree_of_dvd hd s.hP,  
+end
+
 lemma sqfree_of_mem_dvd_P (s:sieve) {d : ℕ} (hd : d ∈ s.P.divisors) : squarefree d := 
 begin
   simp only [nat.mem_divisors, ne.def] at hd,
@@ -80,7 +85,8 @@ def δ (n : ℕ) : ℝ := if n = 1 then 1 else 0
 --@[simp]
 --def μ := arithmetic_function.moebius
 
-
+-- Introduce notation from nat.arithmetic_function because ω defined
+-- in that file would lead to confusion with s.ω.
 localized "notation (name := moebius)
   `μ` := nat.arithmetic_function.moebius" in sieve
 
@@ -316,6 +322,29 @@ begin -- Problem, these identities only hold on l ∣ P, so can't use standard m
             intro hd, rw mem_divisors at hd, 
             exfalso, push_neg at hd,
             exact s.hP_ne_zero (hd hdP) }
+end
+
+lemma conv_g_eq (s : sieve) {d: ℕ} (hd : d ∣ s.P) :
+  (∑ l in s.P.divisors, if l ∣ d then s.g l else 0) = s.g d * (↑d/s.ω d) :=
+begin
+  calc (∑ l in s.P.divisors, if l ∣ d then s.g l else 0) 
+
+      = ∑ l in s.P.divisors, if l ∣ d then s.g (d/l) else 0 
+        : by {
+          rw ←sum_over_dvd_ite s.hP_ne_zero hd,
+          rw ←nat.sum_divisors_antidiagonal (λ x y, s.g x),
+          rw nat.sum_divisors_antidiagonal' (λ x y, s.g x),
+          rw sum_over_dvd_ite s.hP_ne_zero hd }
+  
+  ... = s.g d * ∑ l in s.P.divisors, if l ∣ d then 1/s.g l else 0 
+        : by {
+          rw mul_sum, apply sum_congr rfl, intros l hl,
+          rw ←ite_mul_zero_right, apply ite_eq_of_iff_eq _ _ iff.rfl, intro h, 
+          rw ←div_mult_of_dvd_squarefree s.g s.hg_mult d l, ring,
+          exact h.left, apply squarefree.squarefree_of_dvd hd s.hP,
+          apply ne_of_gt, rw mem_divisors at hl, apply hg_pos, exact hl.left }
+
+  ... = s.g d * (↑d/s.ω d) : by rw ←s.omega_eq_conv_rec_g d hd,
 end
 
 def upper_moebius (μ_plus : ℕ → ℝ) : Prop := ∀n:ℕ, δ n ≤ ∑ d in n.divisors, μ_plus d
