@@ -8,6 +8,7 @@ import algebra.big_operators.basic
 import algebra.squarefree
 import analysis.asymptotics.asymptotics
 import number_theory.arithmetic_function
+import tactic.induction
 noncomputable theory
 
 open_locale big_operators classical arithmetic_function
@@ -658,4 +659,243 @@ begin
   rw abs_pow, simp,
 end
 
+theorem eq_one_of_prod_eq_one {α : Type _} (s : finset α) (f : α → ℕ) (hp: ∏ i in s, f i = 1) : ∀ i∈s, f i = 1 := 
+begin
+  revert hp,
+  apply finset.induction_on s,
+  simp,
+  intros j s hj h_ind heq_one i hi,
+  rw finset.prod_insert hj at heq_one,
+  rw mem_insert at hi,
+  cases hi,
+  { rw hi, exact nat.eq_one_of_mul_eq_one_right heq_one, },
+  exact h_ind (nat.eq_one_of_mul_eq_one_left heq_one) i hi,
+end
+
+theorem fintype_eq_one_of_prod_eq_one {α : Type _} [fintype α] (f : α → ℕ) (hp: ∏ i in finset.univ, f i = 1) : ∀ i, f i = 1 := 
+begin
+  intro i,
+  apply eq_one_of_prod_eq_one finset.univ f hp,
+  exact mem_univ i,
+end
+
+
+lemma prime_dvd_prod {α : Type _} {p : ℕ} (hp : p.prime) {s : finset α} (f : α → ℕ) (h_prod : p ∣ ∏ i in s, f i ) :
+  ∃ i, p ∣ f i := 
+begin
+  revert h_prod,
+  apply finset.induction_on s,
+  rw [prod_empty], intro hp_one, exfalso, rw nat.dvd_one at hp_one, exact nat.prime.ne_one hp hp_one,
+  intros a s ha ih hprod,
+  rw [prod_insert ha, nat.prime.dvd_mul hp] at hprod,
+  cases hprod,
+  use a, exact hprod, exact ih hprod,
+end
+
+
+theorem card_distinct_factors_eq_card_factors_of_squarefree {n : ℕ} (hn : squarefree n) :
+  ω n = Ω n := 
+(arithmetic_function.card_distinct_factors_eq_card_factors_iff_squarefree $ squarefree.ne_zero hn).mpr hn
+
+
+def tuples_with_prod (h d P : ℕ) : finset (fin h → ℕ) :=
+  ((fintype.pi_finset (λ(i: fin h), P.divisors))
+     .filter (λ (s:fin h → ℕ), ∏ i, s i = d))
+
+@[simp]
+def mem_tuples_with_prod {h d P : ℕ} {s : fin h → ℕ } : 
+  s ∈ tuples_with_prod h d P ↔ (∀ i, s i ∈ P.divisors) ∧ ∏ i, s i = d :=
+begin
+  dsimp only [tuples_with_prod],
+  rw [mem_filter, fintype.mem_pi_finset],
+end
+
+--example (a b c : ℕ) (h : b = c) : a * b = a * c := by library_search
+-- Perhaps there is a better way to do this with partitions, but the proof isn't too bad
+-- |{(d1, ..., dh) : d1*...*dh = d}| = h^ω(d)
+theorem card_tuples_with_prod {P d : ℕ} (hP: squarefree P) (hdP : d ∣ P) (h : ℕ) :
+    (tuples_with_prod h d P).card = h^ω d :=
+begin
+  revert hdP, 
+  dsimp only [tuples_with_prod],
+  apply nat.strong_induction_on d,
+  clear d, intro d,
+  intros h_ind hdP,
+
+  have hd_sqfree : squarefree d := squarefree.squarefree_of_dvd hdP hP,
+  have hd_zero : d ≠ 0 := squarefree.ne_zero hd_sqfree, 
+  have hP_ne_zero : P ≠ 0 := squarefree.ne_zero hP,
+  by_cases h_1 : d = 1,
+  { rw h_1, rw (show h ^ ω 1 = 1, by simp only [eq_self_iff_true, pow_zero, nat.arithmetic_function.card_distinct_factors_one]),
+    
+    
+    apply card_eq_one.mpr, use (λ _, 1),
+    ext, rw [mem_singleton, mem_filter, fintype.mem_pi_finset], split,
+    { intro h, ext, apply fintype_eq_one_of_prod_eq_one a h.right },
+    { intro h, rw h, split, intro i,  rw one_mem_divisors, exact squarefree.ne_zero hP,
+      apply prod_eq_one, intros _ _, refl } },
+  have := exists_prime_and_dvd h_1,
+  rcases this with ⟨p, ⟨hp_prime, hp_dvd⟩⟩,
+
+  let S := tuples_with_prod h d P,
+  let Sp_dvd : (fin h) → (finset _) := λj, S.filter(λ(s : fin h → ℕ), p ∣ s j ),
+  
+  have hunion :  finset.univ.bUnion Sp_dvd = S,
+  { ext s, rw mem_bUnion, split,
+    { rintros ⟨i, _, hi⟩, rw mem_filter at hi, exact hi.1, },
+    intro hs,
+    rw mem_tuples_with_prod at hs,
+    rw [←hs.2] at hp_dvd,
+    rw [←finset.to_list_to_finset univ, list.prod_to_finset s _, prime.dvd_prod_iff] at hp_dvd,
+    rcases hp_dvd with ⟨si, ⟨hsi, hpsi⟩⟩,
+    rw list.mem_map at hsi,
+    rcases hsi with ⟨i, ⟨_ , hsi⟩⟩,
+    use i, split, exact mem_univ i,
+    rw mem_filter,
+    rw ←hsi at hpsi,
+    exact ⟨ mem_tuples_with_prod.mpr hs, hpsi⟩,  
+    rw ←nat.prime_iff, exact hp_prime,
+    apply finset.nodup_to_list, },
+
+  have hdisj : ∀(i:fin h), i ∈ (finset.univ:finset$fin h) → ∀(j:fin h), j ∈ (finset.univ:finset$fin h) → 
+               i≠j → disjoint (Sp_dvd i) (Sp_dvd j),
+  { intros i _ j _ hij,
+    rw disjoint_iff_ne,
+    intros s hs t ht,
+    rw [mem_filter, mem_tuples_with_prod] at hs ht,
+    by_contra hst,
+    rw hst at hs,
+    have : (t i).coprime (t j),
+    { apply coprime_of_mul_squarefree,
+      apply squarefree.squarefree_of_dvd _ hd_sqfree,
+      calc t i * t j ∣ t i * t j * ∏ k in (univ.erase i).erase j, t k : ⟨∏ k in (univ.erase i).erase j, t k, rfl⟩
+                 ... = t i * ∏ k in univ.erase i, t k : by {
+                      rw [mul_assoc, mul_prod_erase],
+                      rw mem_erase,
+                      exact ⟨ne_comm.mp hij, mem_univ j⟩ }
+                 ... = d : by rw [mul_prod_erase _ _ (mem_univ i), hs.1.2],},
+    apply absurd this,
+    rw nat.prime.not_coprime_iff_dvd, 
+    use p, exact ⟨hp_prime, hs.2, ht.2⟩, },
+  dsimp only [S, tuples_with_prod] at hunion, 
+  rw ←hunion,
+  rw finset.card_bUnion hdisj,
+  cases hp_dvd with k hk,
+  have hp_dvd : p ∣ d, { use k, exact hk },
+  have hp_ne_zero : p ≠ 0 := ne_zero_of_dvd_ne_zero hd_zero hp_dvd,
+  have hp_pos : 0 < p := (zero_lt_iff.mpr hp_ne_zero),
+
+  let f : fin h → Π(s: fin h → ℕ ), s ∈ tuples_with_prod h k P → (fin h → ℕ) :=
+    λ i s hs, (λ j, if i=j then p*s j else s j),
+
+  have himg : ∀ i s (hs : s ∈ tuples_with_prod h k P), f i s hs ∈ Sp_dvd i,
+  { intros i s hs, 
+    rw mem_tuples_with_prod at hs, 
+    rw [mem_filter, mem_tuples_with_prod], dsimp only [f], split, split,
+    intro j,
+    by_cases hij : i=j,
+    { rw if_pos hij, 
+      rw mem_divisors,
+      split, 
+      calc p * s j ∣ p * ∏ j,  s j : by{
+        rw mul_dvd_mul_iff_left hp_ne_zero,
+        apply finset.dvd_prod_of_mem s (mem_univ j) }
+               ... = d : by rw [hs.2, hk]
+               ... ∣ P : hdP,
+      exact hP_ne_zero, },
+    { rw if_neg hij, exact hs.1 j,},
+    calc ∏ (j : fin h), ite (i = j) (p * s j) (s j)
+           = p * s i * ∏ j in univ.erase i, s j : by {
+            rw ←mul_prod_erase univ _ (mem_univ i),
+            rw [if_pos rfl],
+            apply congr_arg (λ x, p * s i * x),
+            apply prod_congr rfl, intros j hj,
+            rw [mem_erase, ne_comm] at hj,
+            rw if_neg hj.1, }
+       ... = d : by rw [mul_assoc, mul_prod_erase _ _ (mem_univ i), hs.2, hk],
+    rw if_pos rfl, use s i },
+
+  have hinj : ∀ i s t (hs : s ∈ tuples_with_prod h k P) (ht : t ∈ tuples_with_prod h k P),
+     f i s hs = f i t ht → s = t,
+  { intros i s t hs ht hfst, funext j,
+    by_cases hij : i=j,
+    { rw ←mul_right_inj' hp_ne_zero,
+      calc  p * s j = f i s hs j : (eq_comm.mp $ if_pos hij)
+                ... = f i t ht j : by rw hfst
+                ... = p * t j    : if_pos hij },
+    { calc s j = f i s hs j : (eq_comm.mp $ if_neg hij)
+           ... = f i t ht j : by rw hfst
+           ... = t j        : if_neg hij } },
+
+
+  have hsurj : ∀ i t (ht : t ∈ Sp_dvd i), (∃ s (hs : s∈tuples_with_prod h k P), f i s hs  = t),
+  { intros i t ht,
+    rw mem_filter at ht, dsimp only [f],
+    dsimp only [S] at ht,
+    rw mem_tuples_with_prod at ht,
+    let s := λj, if i=j then t j / p else t j,
+    use s, split, 
+    rw mem_tuples_with_prod, split,
+    intro j, 
+    dsimp only [s],
+    by_cases hij : i=j,
+    { rw if_pos hij, 
+      rw mem_divisors,
+      split, rw ←hij,
+      calc _ ∣ t i : div_dvd_of_dvd ht.2
+         ... ∣ P : (mem_divisors.mp (ht.1.1 i)).1,
+      exact squarefree.ne_zero hP },
+    { rw if_neg hij, exact ht.1.1 j },
+    dsimp only [s],
+    calc  ∏ j, ite (i=j) (t j / p) (t j) 
+        = t i / p * ∏ j in univ.erase i, t j : by {
+          rw ←finset.mul_prod_erase univ s (mem_univ i),
+          dsimp only [s], rw if_pos rfl,
+          apply congr_arg (λ x, t i / p * x),
+          apply prod_congr rfl, intros j hj,
+          rw [mem_erase, ne_comm] at hj,
+          rw if_neg hj.1 }
+    ... = t i * (∏ j in univ.erase i, t j) / p : by {
+          conv{to_rhs, rw mul_comm}, 
+          rw [nat.mul_div_assoc _ ht.2, mul_comm] }
+    ... = d / p : by rw [finset.mul_prod_erase univ t (mem_univ i), ht.1.2]
+    ... = k     : by { rw hk, exact nat.mul_div_cancel_left k hp_pos },
+    funext j,
+    dsimp only [s],
+    by_cases hij : i=j,
+    { rw [if_pos hij, if_pos hij, nat.mul_div_cancel'],
+      rw ←hij, exact ht.2 },
+    { rw [if_neg hij, if_neg hij] } },
+
+  have hd_sq : squarefree d := squarefree.squarefree_of_dvd hdP hP,
+  have hk_dvd : k ∣ d, { use p, rw mul_comm, exact hk },
+  have hk_sq : squarefree k := 
+    squarefree.squarefree_of_dvd hk_dvd hd_sq,
+  
+
+  calc  ∑ i, (Sp_dvd i).card
+      = ∑ (i : fin h), (tuples_with_prod h k P).card 
+        : by { 
+          apply sum_congr rfl, intros i _, rw eq_comm, 
+          apply finset.card_congr (f i) (himg i) (hinj i) (hsurj i),}
+  ... = h ^ ω d 
+        : by {
+          rw fin.sum_const,
+          dsimp only [tuples_with_prod],
+          rw [h_ind k _ _, smul_eq_mul, ←pow_succ],
+          rw [card_distinct_factors_eq_card_factors_of_squarefree hd_sq,
+              card_distinct_factors_eq_card_factors_of_squarefree hk_sq,
+              ←arithmetic_function.card_factors_apply_prime hp_prime,
+              ←nat.arithmetic_function.card_factors_mul, mul_comm, hk],
+          exact squarefree.ne_zero hk_sq, exact nat.prime.ne_zero hp_prime,
+          apply lt_of_le_of_ne, apply le_of_dvd _ hk_dvd, rw zero_lt_iff, exact hd_zero,
+          rw [←one_mul k, hk], apply ne_of_lt, apply mul_lt_mul, exact prime.one_lt hp_prime,
+          exact le_rfl, rw zero_lt_iff, exact squarefree.ne_zero hk_sq,
+          exact zero_le p,
+          calc k ∣ d : by {use p, rw hk, ring,}
+           ...   ∣ P : hdP },
+
+end
+
+ --finset.univ.prod (λ (i : fin h), s i) = d)).card = h ^ ω(d)  := sorry
 end aux

@@ -79,16 +79,14 @@ end
 def sifted_sum (s: sieve): ℝ := ∑ d in s.A, if s.P.coprime d then s.a d else 0  
 
 @[simp]
-def ν := arithmetic_function.card_distinct_factors
-@[simp]
 def δ (n : ℕ) : ℝ := if n = 1 then 1 else 0
---@[simp]
---def μ := arithmetic_function.moebius
 
 -- Introduce notation from nat.arithmetic_function because ω defined
 -- in that file would lead to confusion with s.ω.
 localized "notation (name := moebius)
   `μ` := nat.arithmetic_function.moebius" in sieve
+localized "notation (name := card_distinct_factors)
+  `ν` := nat.arithmetic_function.card_distinct_factors" in sieve
 
 theorem sifted_sum_as_delta(s : sieve): 
   s.sifted_sum = ∑ d in s.A, s.a d * δ (nat.gcd s.P d) := 
