@@ -242,7 +242,6 @@ def selberg_ub_sieve (s: sieve) (y : ℝ) (hy : 1 ≤ y): upper_bound_sieve := �
   upper_moebius_of_lambda_sq (s.selberg_weights y) (s.weight_one_of_selberg y hy) ⟩ 
 
 
-namespace selberg
 -- proved for general lambda squared sieves
 lemma main_sum_eq_diag_quad_form (s : sieve) (y : ℝ) :
   s.main_sum (s.selberg_μ_plus y) = ∑ l in s.P.divisors, 
@@ -325,7 +324,6 @@ begin
           rw aux.sum_intro s.P.divisors _ _ (l/k), 
           apply sum_congr rfl, intros m hm,
           apply aux.ite_eq_of_iff_eq, split,
-          --rw mem_divisors at hk hl hm,
           { rintros ⟨hmlk, hkdl, hly⟩, 
             have : l=m*k,
             { rw mul_comm, apply nat.eq_mul_of_div_eq_right,
@@ -456,9 +454,34 @@ begin
 end
 
 
-lemma selberg_bound_μ_plus (s : sieve) (y : ℝ) :
-  ∀ n:ℕ, |s.selberg_μ_plus n| ≤ 3 ^ ν(n) := sorry
+lemma selberg_bound_μ_plus (s : sieve) (y : ℝ) (hy : 1 ≤ y) (n : ℕ) (hn : n ∈ s.P.divisors) :
+ |s.selberg_μ_plus y n| ≤ 3 ^ ν(n) := 
+begin
+  let f : ℕ → ℕ → ℝ := λ (x y : ℕ), if n=x.lcm y then 1 else 0,
+  let lam := s.selberg_weights y,
+  dsimp only [selberg_μ_plus, lambda_squared_of_weights],
+  calc |∑ d1 d2 in n.divisors, if n=d1.lcm d2 then lam d1 * lam d2 else 0 |
+         ≤ ∑ d1 in n.divisors, |∑ d2 in n.divisors, if n=d1.lcm d2 then lam d1 * lam d2 else 0 | : _
+     ... ≤ ∑ d1 d2 in n.divisors, | if n=d1.lcm d2 then lam d1 * lam d2 else 0 | : _
+     ... ≤ ∑ d1 d2 in n.divisors, f d1 d2 : _ 
+     ... = (n.divisors ×ˢ n.divisors).sum (λp, f p.fst p.snd) : _
+     ... = finset.card ((n.divisors ×ˢ n.divisors).filter (λ (p:ℕ×ℕ), n=p.fst.lcm p.snd)) : _
+     ... = 3^ν n          : _,
+  apply abs_sum_le_sum_abs,
+  apply sum_le_sum, intros d1 hd1, apply abs_sum_le_sum_abs,
+  apply sum_le_sum, intros d1 hd1, apply sum_le_sum, intros d2 hd2,
+  rw [apply_ite abs, abs_zero, abs_mul],
+  dsimp only [f], by_cases h:n=d1.lcm d2,
+  rw [if_pos h, if_pos h], 
+  apply mul_le_one (s.selberg_bound_weights y hy d1) (abs_nonneg $ lam d2) (s.selberg_bound_weights y hy d2),
+  rw [if_neg h, if_neg h],
+  rw [←finset.sum_product'], 
+  dsimp only [f],
+  rw [←sum_filter, finset.sum_const, nat.smul_one_eq_coe],
+  rw [aux.card_lcm_eq (s.sqfree_of_mem_dvd_P hn), cast_pow, nat.cast_bit1, algebra_map.coe_one],
+end
 
+#check nat.smul_one_eq_coe
 lemma selberg_bound_simple_err_sum (s : sieve) (y : ℝ) (hy: 1 ≤ y) : 
   s.err_sum (s.selberg_μ_plus y) ≤ ∑ d in s.P.divisors, if (d:ℝ) ≤ y then 3^(ν d) * |s.R d| else 0 := sorry
 
@@ -468,7 +491,5 @@ theorem selberg_bound_simple (s : sieve) (y : ℝ) (hy: 1 ≤ y) :
                + ∑ d in s.P.divisors, if (d:ℝ) ≤ y then 3^(ν d) * |s.R d| else 0 := 
   sorry 
 
-
-end selberg
 
 end sieve

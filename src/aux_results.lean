@@ -9,6 +9,7 @@ import algebra.squarefree
 import analysis.asymptotics.asymptotics
 import number_theory.arithmetic_function
 import tactic.induction
+import data.list.func
 noncomputable theory
 
 open_locale big_operators classical arithmetic_function
@@ -157,11 +158,6 @@ begin
     { rw hn, refl },
     rw this,
     apply sum_empty }
-end
-
-example (n : ℕ) : 0 < n ↔ n ≠ 0 :=
-begin
-  exact zero_lt_iff,
 end
 
 lemma ite_eq_of_iff {α : Type} {p q : Prop} (hpq : p ↔ q) [decidable p] [decidable q] {x y : α} 
@@ -381,7 +377,6 @@ begin
   apply moebius_inv_dvd_lower_bound hP l m hm,
 end
 
-example (a b n : ℕ) (hab : a ∣ b) : a ^ n ∣ b ^ n := pow_dvd_pow_of_dvd hab n
 
 lemma lcm_squarefree_of_squarefree {n m : ℕ} (hn : squarefree n) (hm : squarefree m) : squarefree (n.lcm m) := by {
   have hn_ne_zero := squarefree.ne_zero hn,
@@ -501,7 +496,6 @@ begin
   exact eq_prod_set_factors_of_squarefree hl,
 end
 
--- finset.prod_add   nat.sum_divisors_filter_squarefree 
 lemma prod_add_mult (f: ℕ → ℝ) (h_mult: multiplicative f) {l : ℕ} (hl : squarefree l):
   ∏ p in l.factors.to_finset, (1+f p) = ∑ d in l.divisors, f d := 
 begin
@@ -710,7 +704,6 @@ begin
   rw [mem_filter, fintype.mem_pi_finset],
 end
 
---example (a b c : ℕ) (h : b = c) : a * b = a * c := by library_search
 -- Perhaps there is a better way to do this with partitions, but the proof isn't too bad
 -- |{(d1, ..., dh) : d1*...*dh = d}| = h^ω(d)
 theorem card_tuples_with_prod {P d : ℕ} (hP: squarefree P) (hdP : d ∣ P) (h : ℕ) :
@@ -897,5 +890,133 @@ begin
 
 end
 
- --finset.univ.prod (λ (i : fin h), s i) = d)).card = h ^ ω(d)  := sorry
+lemma nat_lcm_mul_left (a b c : ℕ) : (a*b).lcm (a*c) = a * b.lcm c :=
+begin
+    rw [←lcm_eq_nat_lcm, lcm_mul_left],
+    dsimp, rw mul_one,
+    rw [lcm_eq_nat_lcm],
+end
+
+lemma prod3 (a : fin 3 → ℕ) : ∏ i, a i = a 0 * a 1 * a 2 :=
+begin
+  rw [fin.prod_univ_succ, fin.prod_univ_succ, fin.prod_univ_succ],
+  ring,
+end
+
+theorem card_lcm_eq {n : ℕ} (hn : squarefree n) : 
+  finset.card ((n.divisors ×ˢ n.divisors).filter (λ (p:ℕ×ℕ), n=p.fst.lcm p.snd)) = 3^ω n :=
+begin
+  rw [←card_tuples_with_prod hn dvd_rfl 3, eq_comm],
+  have hn_ne_zero : n ≠ 0 := squarefree.ne_zero hn,
+
+  let f : Π (a : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n), (ℕ × ℕ) :=
+    λ a ha, (a 0 * a 1, a 0 * a 2),
+
+  have hprod : ∀(a : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n),  a 0 * a 1 * a 2 = n,
+  { intros a ha, rw mem_tuples_with_prod at ha,
+    rw [←ha.2, prod3 a], },
+  have ha_ne_zero :  ∀(a : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n) (i : fin 3), a i ≠ 0,
+  { intros a ha i, rw mem_tuples_with_prod at ha,
+    by_contra hai,
+    rw finset.prod_eq_zero (mem_univ i) hai at ha,
+    exact hn_ne_zero (eq_comm.mp ha.2),},
+
+  have h_img : ∀ (a : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n), 
+    f a ha ∈ filter (λ (p : ℕ × ℕ), n = p.fst.lcm p.snd) (n.divisors ×ˢ n.divisors),
+  { intros a ha,
+    rw [mem_filter, finset.mem_product, mem_divisors, mem_divisors],
+    split, split, split,
+    calc a 0 * a 1 ∣ a 0 * a 1 * a 2 : by use a 2
+               ... = n : hprod a ha, 
+    exact hn_ne_zero, split,
+    calc a 0 * a 2 ∣ a 0 * a 1 * a 2 : by {use a 1, ring}
+               ... = n : hprod a ha,  
+    exact hn_ne_zero,
+    dsimp,
+    rw [nat_lcm_mul_left, nat.coprime.lcm_eq_mul, ←hprod a ha],
+    ring,
+    apply coprime_of_mul_squarefree,
+    apply squarefree.squarefree_of_dvd _ hn,
+    calc a 1 * a 2 ∣ a 0 * a 1 * a 2 : by {use a 0, ring}
+               ... = n : hprod a ha },
+
+  have h_inj : ∀ (a b : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n) 
+    (hb : b ∈ tuples_with_prod 3 n n), f a ha = f b hb → a = b,
+  { intros a b ha hb hfab,
+    dsimp only [f] at hfab,
+    cases prod.mk.inj hfab with hfab1 hfab2,
+
+    have hab2 : a 2 = b 2,
+    { have hprods : a 0 * a 1 * a 2 = a 0 * a 1 * b 2,
+      conv{to_rhs, rw hfab1}, 
+      rw [hprod a ha, hprod b hb],
+      rw [←mul_right_inj'],
+      exact hprods, 
+      apply mul_ne_zero (ha_ne_zero a ha 0) (ha_ne_zero a ha 1) },
+    have hab0 : a 0 = b 0,
+    { rw[←mul_left_inj'],
+      rw hab2 at hfab2,
+      exact hfab2, exact ha_ne_zero b hb 2, },
+    have hab1 : a 1 = b 1,
+    { rw[←mul_right_inj'],
+      rw hab0 at hfab1,
+      exact hfab1, exact ha_ne_zero b hb 0, },
+    funext i,
+    fin_cases i,
+    all_goals { assumption } },
+
+  have h_surj : ∀ (b : ℕ × ℕ), b ∈ filter (λ (p : ℕ × ℕ), 
+    n = p.fst.lcm p.snd) (n.divisors ×ˢ n.divisors) → 
+    (∃ (a : fin 3 → ℕ) (ha : a ∈ tuples_with_prod 3 n n), f a ha = b),
+  { intros b hb,
+    let g := b.fst.gcd b.snd,
+    let a := (λ i : fin 3, if i = 0 then g else if i = 1 then b.fst/g else b.snd/g),
+    have ha : a ∈ tuples_with_prod 3 n n,
+    { rw [mem_tuples_with_prod],
+      rw [mem_filter, finset.mem_product] at hb,
+      have hbfst_dvd : b.fst ∣ n := (mem_divisors.mp hb.1.1).1,
+      have hbsnd_dvd : b.snd ∣ n := (mem_divisors.mp hb.1.2).1,
+      split,
+      intro i, rw mem_divisors, fin_cases i,
+      split,
+      calc b.fst.gcd b.snd ∣ b.fst : nat.gcd_dvd_left b.fst b.snd
+                      ...  ∣ n : hbfst_dvd,
+      exact hn_ne_zero,
+      split,
+      calc b.fst / g ∣ b.fst : div_dvd_of_dvd (nat.gcd_dvd_left b.fst b.snd)
+              ...    ∣ n : hbfst_dvd,
+      exact hn_ne_zero,
+      split,
+      calc b.snd / g ∣ b.snd : div_dvd_of_dvd (nat.gcd_dvd_right b.fst b.snd)
+              ...    ∣ n : hbsnd_dvd,
+      exact hn_ne_zero,
+      rw prod3 a,
+      dsimp only [a],
+      have h10: (1:fin 3) ≠ 0,
+      { rw fin.ne_iff_vne, norm_num, },
+      have h20: (2:fin 3) ≠ 0,
+      { rw fin.ne_iff_vne, norm_num, },
+      have h21: (2:fin 3) ≠ 1,
+      { rw fin.ne_iff_vne, norm_num, },
+      rw [if_neg h10, if_pos rfl, if_pos rfl, if_neg h20, if_neg h21, hb.2],
+      calc  g * (b.fst / g) * (b.snd / g) 
+          = b.fst * (b.snd / g) : by rw nat.mul_div_cancel_left' (nat.gcd_dvd_left _ _)
+      ... = b.fst * b.snd / g : _,
+      rw nat.mul_div_assoc b.fst (nat.gcd_dvd_right b.fst b.snd) },
+    use a, use ha,
+    dsimp only [f, a],
+    rw if_pos rfl,
+    apply prod.ext,
+    calc  g * (if 1 = 0 then g else if 1=1 then b.fst/g else (b.snd/g))
+        = g * (b.fst/g) : by simp
+    ... = b.fst : _,
+    apply nat.mul_div_cancel' (nat.gcd_dvd_left b.fst b.snd),
+    calc  g * (if 2=0 then g else if 2=1 then b.fst/g else b.snd/g)
+        = g * (b.snd/g) : by simp
+    ... = b.snd : _,
+    apply nat.mul_div_cancel' (nat.gcd_dvd_right b.fst b.snd) },
+  apply finset.card_congr f h_img h_inj h_surj,
+  
+end
+
 end aux
