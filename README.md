@@ -25,7 +25,7 @@ $$S(\mathcal{A}, \mathcal{P})\le \frac{X}{S} + \sum_{d\le y, l\le\sqrt{y}} 3^{\n
 where 
 $$\nu(d) := \sum_{p\mid d} 1, ~~~~ S := \sum_{l\mid \mathcal{P}, l \le \sqrt{y}} g(l)$$
 with
-$$ g(d) = \frac{\omega(d)}{d}\prod_{p\mid d}(1-\frac{\omega(p)}{p})^{-1}. $$
+$$g(d) = \frac{\omega(d)}{d}\prod_{p\mid d}(1-\frac{\omega(p)}{p})^{-1}.$$
 
 We hope to later use this result to prove
 
