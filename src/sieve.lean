@@ -17,6 +17,9 @@ open_locale big_operators classical
 open finset real nat aux
 
 set_option profiler true
+
+-- TODO: rename ω to ν so as to not clash with arithmetic_function
+-- TODO: make ω an arithmetic_function so we can re-use is_multiplicative  
 -- one should think of a as weights given to the elements of A,
 -- values of a n for n not in A do not affect any of the results
 structure sieve := 
@@ -83,6 +86,7 @@ def δ (n : ℕ) : ℝ := if n = 1 then 1 else 0
 
 -- Introduce notation from nat.arithmetic_function because ω defined
 -- in that file would lead to confusion with s.ω.
+-- TODO rename s.ω and undo this local notation.
 localized "notation (name := moebius)
   `μ` := nat.arithmetic_function.moebius" in sieve
 localized "notation (name := card_distinct_factors)
@@ -106,9 +110,6 @@ begin
     ring },
 end
 
-
--- The size axioms needed for the simple form of the selberg bound
-def axiom_size_1 (s : sieve) : Prop := ∀p:ℕ, p.prime → p ∣ s.P → (s.ω p < p) 
 
 def hω_size_of_dvd_P (s : sieve):
   ∀d:ℕ, d ∣ s.P → d ≠ 1 → (s.ω d < d) :=  
@@ -450,10 +451,6 @@ end
 def lambda_squared_of_weights (weights : ℕ → ℝ) : ℕ → ℝ := 
   λd,  ∑ d1 d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0
 
-example (a b : ℕ) (h : a ≤ b) : a^2 ≤ b^2 := pow_mono_right 2 h
-example (a b : ℕ) : a/b ≤ a := nat.div_le_self a b
-
---TODO : dispense with hy
 lemma lambda_squared_of_weights_eq_zero_of_support (w : ℕ → ℝ) (y : ℝ) (hw: ∀d:ℕ, ¬(d:ℝ)^2 ≤ y → w d = 0) :
   ∀d:ℕ, ¬↑d ≤ y → lambda_squared_of_weights w d = 0 :=
 begin
@@ -509,8 +506,6 @@ lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ d1 d2 in s.P.divisors, 
             s.ω d1/d1 * w d1 * s.ω d2/d2 * w d2 * (d1.gcd d2)/s.ω(d1.gcd d2) := 
 begin
-  --dsimp only [main_sum, lambda_squared_of_weights],
-
   calc ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 else 0) * s.ω d / ↑d
       = ∑ d in s.P.divisors, (∑ d1 d2 in d.divisors, if d = d1.lcm d2 then w d1 * w d2 else 0) * (s.ω d / ↑d) 
         : by { apply sum_congr rfl, intros d hdP, ring }
@@ -663,7 +658,6 @@ end
 
   
 
---TODO: TIDY UP PROOF
 theorem upper_moebius_of_lambda_sq (weights : ℕ → ℝ) (hw : weights 1 = 1) : 
   upper_moebius $ lambda_squared_of_weights weights :=
 begin
@@ -723,12 +717,5 @@ begin
   { rw if_neg hn, 
     apply sq_nonneg, }
 end
- 
-
---def lambda_squared_sieve_of_weights 
---  (s: sieve) (weights : ℕ → ℝ) (hw: weights 1 = 1) : upper_bound_sieve := 
- -- ⟨s, lambda_squared_of_weights weights, upper_moebius_of_lambda_sq weights hw⟩ 
-
---end upper_bound_sieve
 
 end sieve

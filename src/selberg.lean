@@ -1,3 +1,9 @@
+/-
+Copyright (c) 2023 Arend Mellendijk. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Author: Arend Mellendijk
+-/
+
 import sieve
 
 
@@ -68,7 +74,6 @@ begin
   push_neg,
   calc ↑d^2 ≤ (↑m)^2 * (↑d)^2 : _
         ... ≤ y : _,
-  --norm_cast,
   have : 1 ≤ (m:ℝ), 
   { norm_cast,
     rw succ_le_iff,
@@ -548,8 +553,7 @@ begin
   apply add_le_add,
   have : ⇑μ_plus = s.selberg_μ_plus y := rfl,
   rw this, clear this,
-  rw s.selberg_bound_simple_main_sum y hy,
-  rw mul_one_div,
+  rw [s.selberg_bound_simple_main_sum y hy, mul_one_div],
   refine s.selberg_bound_simple_err_sum y hy,
 end
 
