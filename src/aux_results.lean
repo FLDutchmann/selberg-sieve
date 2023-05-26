@@ -1019,4 +1019,6 @@ begin
   
 end
 
+lemma nat_sq_mono {a b : ℕ} (h : a ≤ b) : a^2 ≤ b^2 := pow_mono_right 2 h 
+
 end aux

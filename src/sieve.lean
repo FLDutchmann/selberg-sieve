@@ -450,6 +450,60 @@ end
 def lambda_squared_of_weights (weights : ℕ → ℝ) : ℕ → ℝ := 
   λd,  ∑ d1 d2 in d.divisors, if d = nat.lcm d1 d2 then weights d1 * weights d2 else 0
 
+example (a b : ℕ) (h : a ≤ b) : a^2 ≤ b^2 := pow_mono_right 2 h
+example (a b : ℕ) : a/b ≤ a := nat.div_le_self a b
+
+--TODO : dispense with hy
+lemma lambda_squared_of_weights_eq_zero_of_support (w : ℕ → ℝ) (y : ℝ) (hw: ∀d:ℕ, ¬(d:ℝ)^2 ≤ y → w d = 0) :
+  ∀d:ℕ, ¬↑d ≤ y → lambda_squared_of_weights w d = 0 :=
+begin
+  by_cases hy: 0 ≤ y,
+  swap,
+  { intros d hd,
+    push_neg at hd hy,
+    have : ∀(d':ℕ), w d' = 0,
+    { intro d', apply hw, push_neg,
+      have : 0 ≤ (d':ℝ)^2 := by norm_num,
+      linarith },
+    dsimp only [lambda_squared_of_weights],
+    apply sum_eq_zero, intros d1 hd1,
+    apply sum_eq_zero, intros d2 hd2,
+    rw [this d1, this d2],
+    simp only [if_t_t, eq_self_iff_true, mul_zero] },
+  intros d hd,
+  dsimp only [lambda_squared_of_weights],
+  apply sum_eq_zero, intros d1 hd1, apply sum_eq_zero, intros d2 hd2,
+  by_cases h:d=d1.lcm d2,
+  swap, rw if_neg h,
+  rw if_pos h,
+
+  wlog hass : d1 ≤ d2,
+  { push_neg at hass, 
+    rw mul_comm,
+    refine this w y hw hy d hd d2 hd2 d1 hd1 _ (le_of_lt hass), 
+    rw nat.lcm_comm, exact h },
+
+  have hcases : ¬ (d2:ℝ)^2 ≤ y,
+  { by_contra hyp, 
+    apply absurd hd, push_neg,
+    rw ←abs_of_nonneg (_:0≤(d:ℝ)),
+    apply abs_le_of_sq_le_sq _ hy,
+    calc ↑d^2 = ↑(d1.lcm d2)^2     : _
+          ... ≤ (↑d1 * ↑d2)^2      : _
+          ... ≤ (↑d2)^2 * (↑d2)^2  : _
+          ... ≤ y^2                : _, 
+    rw h,
+    norm_cast,
+    apply nat_sq_mono,
+    apply nat.div_le_self,
+    norm_cast,
+    rw ←mul_pow, apply nat_sq_mono, apply mul_le_mul hass le_rfl (nat.zero_le d2) (nat.zero_le d2),
+    conv{to_rhs, rw sq},
+    apply mul_le_mul hyp hyp (sq_nonneg _) hy,
+    rw [←cast_zero, cast_le], 
+    exact zero_le d },
+  rw [hw d2 hcases, mul_zero],
+ end
 
 lemma lambda_sq_main_sum_eq_quad_form (s: sieve) (w : ℕ → ℝ) :
   s.main_sum (lambda_squared_of_weights w) = ∑ d1 d2 in s.P.divisors, 

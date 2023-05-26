@@ -50,6 +50,39 @@ def selberg_weights (s: sieve) (y : ℝ) : ℕ → ℝ :=
    * ∑ m in s.P.divisors, if (m*d:ℝ)^2 ≤ y ∧ m.coprime d then s.g m else 0 ) 
   else 0
 
+lemma selberg_weights_eq_zero (s : sieve) (y : ℝ) (d : ℕ) (hd : ¬(d:ℝ)^2 ≤ y) : 
+  s.selberg_weights y d = 0 :=
+begin
+  dsimp only [selberg_weights],
+  by_cases h:d∣s.P,
+  swap, 
+  rw if_neg h,
+  rw if_pos h,
+  rw [mul_eq_zero_of_right _],
+  rw [finset.sum_eq_zero], intros m hm,
+  rw if_neg, 
+  push_neg,
+  intro hyp,
+  exfalso,
+  apply absurd hd,
+  push_neg,
+  calc ↑d^2 ≤ (↑m)^2 * (↑d)^2 : _
+        ... ≤ y : _,
+  --norm_cast,
+  have : 1 ≤ (m:ℝ), 
+  { norm_cast,
+    rw succ_le_iff,
+    rw mem_divisors at hm,
+    rw zero_lt_iff,
+    exact ne_zero_of_dvd_ne_zero hm.2 hm.1 },
+  apply le_mul_of_one_le_left,
+  exact sq_nonneg d,
+  rw one_le_sq_iff,
+  linarith, linarith,
+  rw ←mul_pow,
+  exact hyp,
+end
+
 lemma selberg_weight_mul_mu_nonneg (s: sieve) (y : ℝ) (d : ℕ) (hdP : d ∣ s.P):
   0 ≤ s.selberg_weights y d * μ d :=
 begin
@@ -235,6 +268,13 @@ begin
   rw ←this, apply one_div_mul_cancel,
   apply ne_of_gt, exact s.selberg_bounding_sum_pos y hy,
   exact one_dvd _,
+end
+
+theorem selberg_μ_plus_eq_zero (s: sieve) (y: ℝ) (d: ℕ) (hd: ¬ ↑d ≤ y): 
+ s.selberg_μ_plus y d = 0 :=
+begin
+  apply lambda_squared_of_weights_eq_zero_of_support _ y _ d hd,
+  apply s.selberg_weights_eq_zero,
 end
 
 def selberg_ub_sieve (s: sieve) (y : ℝ) (hy : 1 ≤ y): upper_bound_sieve := ⟨ 
@@ -483,13 +523,35 @@ end
 
 #check nat.smul_one_eq_coe
 lemma selberg_bound_simple_err_sum (s : sieve) (y : ℝ) (hy: 1 ≤ y) : 
-  s.err_sum (s.selberg_μ_plus y) ≤ ∑ d in s.P.divisors, if (d:ℝ) ≤ y then 3^(ν d) * |s.R d| else 0 := sorry
+  s.err_sum (s.selberg_μ_plus y) ≤ ∑ d in s.P.divisors, if (d:ℝ) ≤ y then 3^(ν d) * |s.R d| else 0 := 
+begin
+  dsimp only [err_sum],
+  apply sum_le_sum, intros d hd,
+  by_cases h : ↑d ≤ y,
+  { rw if_pos h,
+    apply mul_le_mul _ le_rfl (abs_nonneg $ s.R d) (pow_nonneg _ $ ν d), 
+    apply s.selberg_bound_μ_plus y hy d hd,
+    linarith },
+  { rw if_neg h,
+    rw s.selberg_μ_plus_eq_zero y d h,
+    rw [abs_zero, zero_mul] },
+end
 
 
 theorem selberg_bound_simple (s : sieve) (y : ℝ) (hy: 1 ≤ y) :
   s.sifted_sum ≤ s.X / (s.selberg_bounding_sum_at_level y) 
                + ∑ d in s.P.divisors, if (d:ℝ) ≤ y then 3^(ν d) * |s.R d| else 0 := 
-  sorry 
+begin
+  let μ_plus := s.selberg_ub_sieve y hy,
+  calc s.sifted_sum ≤ s.X * s.main_sum μ_plus + s.err_sum μ_plus : s.upper_bound_main_err μ_plus
+                ... ≤ _ : _,
+  apply add_le_add,
+  have : ⇑μ_plus = s.selberg_μ_plus y := rfl,
+  rw this, clear this,
+  rw s.selberg_bound_simple_main_sum y hy,
+  rw mul_one_div,
+  refine s.selberg_bound_simple_err_sum y hy,
+end
 
 
 end sieve
