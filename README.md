@@ -18,7 +18,7 @@ We prove the following version of the Fundamental Theorem of the Selberg sieve a
 ## Fundamental Theorem 
 Let $\mathcal{A} = (a_n)$ be a finitely supported sequence of nonnegative real numbers, $\mathcal{P}$ a finite set of primes and $y\ge 1$ a real number. 
 
-Let $S(\mathcal{A}, \mathcal{P}) = \sum_{(i, \mathcal{P})=1} a_i$ and suppose we can write $S(\mathcal{A}, \mathcal{P}) = \omega(d)/d * X + R_d$ where $\omega$ is multiplicative and $0 < \omega(p) < p$ for every prime $p \in \mathcal{P}$.
+Let $S(\mathcal{A}, \mathcal{P}) = \sum_{(i, \mathcal{P})=1} a_i$ and suppose we can write $S(\mathcal{A}, \mathcal{P}) = X \omega(d)/d + R_d$ where $\omega$ is multiplicative and $0 < \omega(p) < p$ for every prime $p \in \mathcal{P}$.
 
 Then 
 $$S(\mathcal{A}, \mathcal{P})\le \frac{X}{S} + \sum_{d\le y, l\le\sqrt{y}} 3^{\nu(d)}\left|R_d\right|$$
