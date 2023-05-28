@@ -1,8 +1,8 @@
 [package]
 name = "selberg-sieve"
 version = "0.1"
-lean_version = "leanprover-community/lean:3.50.3"
+lean_version = "leanprover-community/lean:3.51.1"
 path = "src"
 
 [dependencies]
-mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "039ef89bef6e58b32b62898dd48e9d1a4312bb65"}
+mathlib = {git = "https://github.com/leanprover-community/mathlib", rev = "88a563b158f59f2983cfad685664da95502e8cdd"}
