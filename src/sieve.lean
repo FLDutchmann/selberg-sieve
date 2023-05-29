@@ -25,8 +25,8 @@ set_option profiler true
 structure sieve := 
   mk :: (A : finset ℕ) (P : ℕ) (hP : squarefree P) 
         (a : ℕ → ℝ) (ha_nonneg : ∀ n:ℕ, 0 ≤ a n) 
-        (X : ℝ) (ω : ℕ → ℝ) 
-        (hω_mult : multiplicative ω)
+        (X : ℝ) (ω : arithmetic_function ℝ) 
+        (hω_mult : ω.is_multiplicative)
         (hω_pos_of_prime : ∀(p:ℕ), p.prime → p ∣ P → 0 < ω p)
         (hω_size :         ∀(p:ℕ), p.prime → p ∣ P → ω p < p)
 
