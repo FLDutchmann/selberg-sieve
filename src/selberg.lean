@@ -15,7 +15,7 @@ open finset real nat sieve.upper_bound_sieve
 
 namespace sieve
 
-set_option profiler true
+--set_option profiler true
 
 @[simp]
 def selberg_bounding_sum_at_level (s : sieve) (y : ℝ) : ℝ := 

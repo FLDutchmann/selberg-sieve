@@ -7,6 +7,9 @@ Author: Arend Mellendijk
 import algebra.big_operators.basic
 import algebra.squarefree
 import analysis.asymptotics.asymptotics
+import analysis.special_functions.integrals
+import analysis.special_functions.log.basic
+import analysis.sum_integral_comparisons
 import number_theory.arithmetic_function
 import tactic.induction
 import data.list.func
@@ -1020,5 +1023,88 @@ begin
 end
 
 lemma nat_sq_mono {a b : ℕ} (h : a ≤ b) : a^2 ≤ b^2 := pow_mono_right 2 h 
+
+example (x : ℝ) (hx : 0 < x): ∫ (t:ℝ) in 1..x, 1/t = real.log x := begin
+  rw [integral_one_div_of_pos, div_one],
+  linarith, assumption,
+end
+example (a b: ℕ) (h: a ≤ b) : (Ico a (b+1)) = Icc a b := rfl
+
+theorem sum_one_div_le_log (n : ℕ) (hn: 1 ≤ n) : ∑ d in finset.Icc 1 n, 1/(d:ℝ) ≤ 1 + real.log ↑n := 
+begin
+  suffices : ∑ (d : ℕ) in Ioc 1 n, 1 / (d:ℝ) ≤ real.log ↑n,
+  { calc _ = 1 + ∑ (d : ℕ) in Icc 2 n, 1 / (d:ℝ) : _
+       ... ≤ 1 + real.log ↑n : _,
+    
+    rw [←finset.sum_erase_add (Icc 1 n) _ (_:1∈Icc 1 n), finset.Icc_erase_left], 
+    ring, rw finset.mem_Icc, exact ⟨le_rfl,hn⟩,
+    apply add_le_add, exact le_rfl, exact this },
+  calc ∑ (d : ℕ) in Ico 2 (n+1), 1 / (d:ℝ)
+         = ∑ d in Ico 2 (n+1), 1/(↑(d+1)-1) : _ 
+     ... ≤ ∫ x in ↑2..↑(n+1), 1/(x-1) : _
+     ... = real.log ↑n : _,
+  apply sum_congr rfl; intros d hd; rw (by norm_num : (↑(d+1)-1) = (d:ℝ) ),
+  apply @antitone_on.sum_le_integral_Ico 2 (n+1) (λ(x:ℝ), 1/(x-1)),
+  apply succ_le_succ; exact hn, 
+  dsimp only [antitone_on],
+  intros a ha b hb hab,
+  have : ∀(x:ℝ), x ∈ set.Icc (↑2:ℝ) ↑(n+1) → 0 < x-1,
+  { rintros x ⟨hx_1, hx_2⟩, rw cast_two at hx_1, linarith, },
+  rw _root_.one_div_le_one_div (this b hb) (this a ha), linarith,
+  have two_sub_one : 2-1 = (1:ℝ) := by norm_num,
+  rw [cast_two, cast_add, cast_one],
+  rw interval_integral.integral_comp_sub_right _ 1,
+  rw [add_sub_assoc, sub_self (1:ℝ), add_zero, two_sub_one, integral_one_div, div_one],
+  by_contra h, rw set.mem_uIcc at h,
+  cases h,
+  linarith only [h.1],
+  rw [←cast_zero, cast_le] at h,
+  linarith only [hn, h.1],
+end
+#check (λ n : ℕ, ∫ x in (2:ℝ)..((n+1):ℝ), 1/(x-1) )
+/- Lemma 3.1 in Heath-Brown's notes -/
+
+theorem sum_pow_card_distinct_factors_div_self_le_log_pow {P h : ℕ} (x : ℝ) (hx : 1 ≤ x) (hP : squarefree P) :
+  (∑ d in P.divisors, if (↑d ≤ x) then ↑h^ω d / (d:ℝ) else (0:ℝ)) ≤ (1 + real.log x)^h :=
+begin
+  by_cases hP_zero : P = 0,
+  { rw hP_zero, simp, apply pow_nonneg, sorry, },
+  calc _ = ∑ d in P.divisors, ite (↑d ≤ x) (↑(tuples_with_prod h d P).card / (d:ℝ)) 0 : _
+     ... = ∑ d in P.divisors, ↑(tuples_with_prod h d P).card * ite (↑d ≤ x) (1 / (d:ℝ)) 0 : _
+     ... = ∑ d in P.divisors, ∑ a in (fintype.pi_finset (λ(i: fin h), P.divisors)), 
+             (if ∏ i, a i = d ∧ d ∣ P then if ↑d ≤ x then 1/(d:ℝ) else 0 else 0)  : _
+     ... = ∑ a in (fintype.pi_finset (λ(i: fin h), P.divisors)), 
+             (if ∏ i, a i ∣ P then if ↑∏ i, a i ≤ x then ∏ i, 1/(a i:ℝ) else 0 else 0)  : _
+     ... ≤ ∑ a in (fintype.pi_finset (λ(i: fin h), P.divisors)), 
+           (if ↑∏ i, a i ≤ x then ∏ i, 1/(a i:ℝ)  else 0)               : _
+     ... ≤ ∑ a in (fintype.pi_finset (λ(i: fin h), P.divisors)), 
+           ∏ i, (if ↑(a i) ≤ x then 1 / (a i:ℝ) else 0 )                : _
+     ... = ∏ (i: fin h), ∑ d in P.divisors, if ↑d ≤ x then 1/(d:ℝ) else 0          : _
+     ... = (∑ d in P.divisors, if ↑d ≤ x then 1/(d:ℝ) else 0)^h : _
+     ... ≤ (1 + real.log x)^h : _,
+  { apply sum_congr rfl, intros d hd, apply ite_eq_of_iff_eq _ _ iff.rfl,
+    intro _, rw [←cast_pow, ←card_tuples_with_prod hP (mem_divisors.mp hd).1 h] },
+  { apply sum_congr rfl, intros d hd, rw ←ite_mul_zero_right, apply ite_eq_of_iff_eq _ _ iff.rfl,
+    intros _, rw mul_one_div },
+  { apply sum_congr rfl, intros d hd, 
+    rw [finset.card_eq_sum_ones, cast_sum, cast_one, sum_mul, one_mul],
+    dsimp only [tuples_with_prod], rw [sum_filter], apply sum_congr rfl, intros a ha,
+    have : ∏ i, a i = d ↔ (∏ i, a i = d) ∧ d ∣ P, 
+    { rw [mem_divisors] at hd, rw iff_self_and, exact λ _, hd.1, },
+    rw ite_eq_of_iff_eq _ _ this (λ _, rfl),  },
+  { rw [sum_comm], apply sum_congr rfl, intros a ha, rw [sum_eq_single (∏ i, a i)],
+    apply ite_eq_of_iff_eq, rw [iff.comm, iff_and_self], exact λ_, rfl,
+    intro _, rw [one_div, cast_prod, ←prod_inv_distrib, ite_eq_of_iff_eq _ _ iff.rfl],
+    intro _, apply prod_congr rfl, intros _ _, rw one_div,
+    intros d hd hd_ne, rw ne_comm at hd_ne, rw if_neg, by_contra h, exact hd_ne h.1,
+    intro h, rw if_neg, by_contra h_cont, rw mem_divisors at h, sorry,},
+  repeat {sorry},
+end
+
+
+theorem sum_pow_card_distinct_factors_le_self_mul_log_pow {P h : ℕ} (x : ℝ) (hx : 1 ≤ x) (hP : squarefree P) :
+  (∑ d in P.divisors, if (↑d ≤ x) then (h:ℝ)^ω d else (0:ℝ)) ≤ x*(1 + real.log x)^h :=
+  sorry
+
 
 end aux
